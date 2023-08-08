@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Version>1.0</Version>
+    <Title>External Building Aerodynamics</Title>
+    <Description>Description of External Building Aerodynamics</Description>
+    <TargetExt>.gha</TargetExt>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Grasshopper" Version="7.31.23166.15001" IncludeAssets="compile;build" />
+    <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="SimScale.Sdk">
+      <HintPath>..\..\..\Downloads\simscale-csharp-sdk-master\src\SimScale.Sdk\bin\Debug\netstandard2.0\SimScale.Sdk.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
