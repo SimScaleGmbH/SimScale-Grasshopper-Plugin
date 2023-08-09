@@ -12,6 +12,7 @@ using System.IO.Compression;
 
 
 using Guid_Utilities;
+using External_Building_Aerodynamics;
 
 namespace External_Building_Aerodynamics
 {
@@ -166,140 +167,77 @@ namespace External_Building_Aerodynamics
     }
     public class Upload_Model : GH_Component
     {
-        /// <summary>
-        /// Each implementation of GH_Component must provide a public 
-        /// constructor without any arguments.
-        /// Category represents the Tab in which the component will appear, 
-        /// Subcategory the panel. If you use non-existing tab or panel names, 
-        /// new tabs/panels will automatically be created.
-        /// </summary>
-        public Upload_Model()
-            : base("Upload Model", "Upload",
-            "Uploads a 3D model to be used in simulation.",
-            "SimScale", "Pre-processing")
-        {
-        }
+        public Upload_Model() : base("Upload Model", "Upload", "Uploads a 3D model to be used in simulation.", "SimScale", "Pre-processing") { }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            // Use the pManager object to register your input parameters.
-            // You can often supply default values when creating parameters.
-            // All parameters must have the correct access type. If you want 
-            // to import lists or trees of values, modify the ParamAccess flag.
+            pManager.AddGeometryParameter("Site", "Site", "The part of the model that represents the site you are designing or analysing", GH_ParamAccess.list);
+            pManager.AddGeometryParameter("Context", "Context", "The part of the model that represents the surrounding buildings", GH_ParamAccess.list);
+            pManager.AddGeometryParameter("Topology", "Topology", "The part of the model that represents the surrounding buildings", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Additional Geometries", "AddGeom", "Additional named geometries", GH_ParamAccess.list);
 
-            pManager.AddGeometryParameter("Site", "Site",
-                "The part of the model that represents the site you are designing or analysing",
-                GH_ParamAccess.list);
-            pManager.AddGeometryParameter("Context", "Context",
-                "The part of the model that represents the surrounding buildings",
-                GH_ParamAccess.list);
-            pManager.AddGeometryParameter("Topology", "Topology",
-                "The part of the model that represents the surrounding buildings",
-                GH_ParamAccess.list);
-
-            // Make all input parameters optional
             pManager[0].Optional = true;
             pManager[1].Optional = true;
             pManager[2].Optional = true;
+            pManager[3].Optional = true;
         }
 
-
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            // Use the pManager object to register your output parameters.
-            // Output parameters do not have default values, but they too must have the correct access type.
-            pManager.AddTextParameter("Geometry", "Geometry",
-                "An ID that identifies the uploaded geometry",
-                GH_ParamAccess.item);
-
-            // Sometimes you want to hide a specific parameter from the Rhino preview.
-            // You can use the HideParameter() method as a quick way:
-            //pManager.HideParameter(0);
+            pManager.AddTextParameter("Geometry", "Geometry", "An ID that identifies the uploaded geometry", GH_ParamAccess.item);
         }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object can be used to retrieve data from input parameters and 
-        /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            string[] names = { "NS_SITE", "NS_CONTEXT", "NS_TOPOLOGY" };
-            string homePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SimScale Geometry");
+            string[] predefinedNames = { "NS_SITE", "NS_CONTEXT", "NS_TOPOLOGY" };
+            List<string> createdStlFiles = new List<string>();
 
-            // Check if the homePath exists, if not, create it
+            string homePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SimScale Geometry");
             if (!System.IO.Directory.Exists(homePath))
             {
                 System.IO.Directory.CreateDirectory(homePath);
             }
 
-            List<string> createdStlFiles = new List<string>();
-
             for (int i = 0; i < 3; i++)
             {
                 List<GeometryBase> geometryList = new List<GeometryBase>();
-                if (!DA.GetDataList(i, geometryList) || geometryList.Count == 0) continue;
-
-                Rhino.Geometry.Mesh joinedMesh = new Rhino.Geometry.Mesh();
-
-                foreach (var geometry in geometryList)
+                if (DA.GetDataList(i, geometryList))
                 {
-                    if (geometry is Rhino.Geometry.Brep)
+                    string stlName = ExportGeometryListToStl(geometryList, predefinedNames[i], homePath);
+                    if (!string.IsNullOrEmpty(stlName))
                     {
-                        var brep = geometry as Rhino.Geometry.Brep;
-                        var meshes = Rhino.Geometry.Mesh.CreateFromBrep(brep, Rhino.Geometry.MeshingParameters.Default);
-
-                        foreach (var submesh in meshes)
-                        {
-                            joinedMesh.Append(submesh);
-                        }
-                    }
-                    else if (geometry is Rhino.Geometry.Mesh)
-                    {
-                        joinedMesh.Append(geometry as Rhino.Geometry.Mesh);
+                        createdStlFiles.Add(stlName);
                     }
                 }
-
-                if (joinedMesh == null || joinedMesh.Faces.Count == 0)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Failed to create a mesh from the {names[i]} geometry.");
-                    continue;
-                }
-
-                string filePath = System.IO.Path.Combine(homePath, $"{names[i]}.stl");
-
-                // Temporarily add the mesh to the document
-                Guid meshId = Rhino.RhinoDoc.ActiveDoc.Objects.AddMesh(joinedMesh);
-
-                // Select the mesh in the document
-                Rhino.RhinoDoc.ActiveDoc.Objects.Select(meshId);
-
-                // Use the script to export only the selected mesh
-                string scriptCommand = $"-Export \"{filePath}\" _Enter";
-                if (Rhino.RhinoApp.RunScript(scriptCommand, false))
-                {
-                    createdStlFiles.Add($"{names[i]}.stl");
-                }
-
-                // Deselect the mesh after export
-                Rhino.RhinoDoc.ActiveDoc.Objects.UnselectAll();
-
-                // Remove the mesh from the document
-                Rhino.RhinoDoc.ActiveDoc.Objects.Delete(meshId, true);
             }
 
+            List<AdditionalGeometryInput.NamedGeometry> additionalGeometries = new List<AdditionalGeometryInput.NamedGeometry>();
+            if (DA.GetDataList("Additional Geometries", additionalGeometries))
+            {
+                foreach (var namedGeometry in additionalGeometries)
+                {
+                    string stlName = ExportGeometryListToStl(namedGeometry.Geometries, "NS_" + namedGeometry.Name, homePath);
+                    if (!string.IsNullOrEmpty(stlName))
+                    {
+                        createdStlFiles.Add(stlName);
+                    }
+                }
+            }
+
+            // Create ZIP
             if (createdStlFiles.Count > 0)
             {
-                string zipFileName = createdStlFiles.Count == 1 ? createdStlFiles[0].Replace(".stl", ".zip") : "Meshes.zip";
-                string zipFilePath = System.IO.Path.Combine(homePath, zipFileName);
+                string zipName;
+                if (createdStlFiles.Count == 1)
+                {
+                    zipName = System.IO.Path.GetFileNameWithoutExtension(createdStlFiles[0]) + ".zip";
+                }
+                else
+                {
+                    zipName = "Meshes.zip";
+                }
+                string zipFilePath = System.IO.Path.Combine(homePath, zipName);
 
-                // Check if the Zip file already exists and delete it if it does
                 if (System.IO.File.Exists(zipFilePath))
                 {
                     System.IO.File.Delete(zipFilePath);
@@ -310,38 +248,99 @@ namespace External_Building_Aerodynamics
                     foreach (var stlFile in createdStlFiles)
                     {
                         string fullPath = System.IO.Path.Combine(homePath, stlFile);
-                        zipArchive.CreateEntryFromFile(fullPath, stlFile);
-
-                        // Delete the STL file after adding it to the zip
-                        System.IO.File.Delete(fullPath);
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            zipArchive.CreateEntryFromFile(fullPath, stlFile);
+                            System.IO.File.Delete(fullPath); // Deleting the STL after adding to zip
+                        }
                     }
                 }
             }
         }
 
+        private string ExportGeometryListToStl(List<GeometryBase> geometryList, string name, string path)
+        {
+            Rhino.Geometry.Mesh joinedMesh = new Rhino.Geometry.Mesh();
+            foreach (var geometry in geometryList)
+            {
+                if (geometry is Rhino.Geometry.Brep)
+                {
+                    var brep = geometry as Rhino.Geometry.Brep;
+                    var meshes = Rhino.Geometry.Mesh.CreateFromBrep(brep, Rhino.Geometry.MeshingParameters.Default);
+                    foreach (var submesh in meshes)
+                    {
+                        joinedMesh.Append(submesh);
+                    }
+                }
+                else if (geometry is Rhino.Geometry.Mesh)
+                {
+                    joinedMesh.Append(geometry as Rhino.Geometry.Mesh);
+                }
+            }
 
+            if (joinedMesh == null || joinedMesh.Faces.Count == 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Failed to create a mesh from the {name} geometry.");
+                return null;
+            }
 
-        /// <summary>
-        /// The Exposure property controls where in the panel a component icon 
-        /// will appear. There are seven possible locations (primary to septenary), 
-        /// each of which can be combined with the GH_Exposure.obscure flag, which 
-        /// ensures the component will only be visible on panel dropdowns.
-        /// </summary>
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+            string filePath = System.IO.Path.Combine(path, $"{name}.stl");
 
-        /// <summary>
-        /// Provides an Icon for every component that will be visible in the User Interface.
-        /// Icons need to be 24x24 pixels.
-        /// You can add image files to your project resources and access them like this:
-        /// return Resources.IconForThisComponent;
-        /// </summary>
-        protected override System.Drawing.Bitmap Icon => null;
+            Guid meshId = Rhino.RhinoDoc.ActiveDoc.Objects.AddMesh(joinedMesh);
+            Rhino.RhinoDoc.ActiveDoc.Objects.Select(meshId);
 
-        /// <summary>
-        /// Each component must have a unique Guid to identify it. 
-        /// It is vital this Guid doesn't change otherwise old ghx files 
-        /// that use the old ID will partially fail during loading.
-        /// </summary>
+            string scriptCommand = $"-Export \"{filePath}\" _Enter";
+            Rhino.RhinoApp.RunScript(scriptCommand, false);
+
+            Rhino.RhinoDoc.ActiveDoc.Objects.UnselectAll();
+            Rhino.RhinoDoc.ActiveDoc.Objects.Delete(meshId, true);
+
+            return $"{name}.stl";
+        }
+
         public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component2");
     }
+    public class AdditionalGeometryInput : GH_Component
+    {
+        public AdditionalGeometryInput() : base("Additional Geometry Input", "AddGeom", "Input for additional named geometries.", "SimScale", "Pre-processing") { }
+
+        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        {
+            pManager.AddTextParameter("Geometry Name", "Name", "Name for the geometry", GH_ParamAccess.item);
+            pManager.AddGeometryParameter("Geometry", "Geometry", "The geometry to be processed", GH_ParamAccess.list);
+        }
+
+        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        {
+            pManager.AddGenericParameter("Named Geometry", "NG", "Named geometry output", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            string geometryName = "";
+            if (!DA.GetData(0, ref geometryName)) return;
+
+            List<GeometryBase> geometries = new List<GeometryBase>();
+            if (!DA.GetDataList(1, geometries)) return;
+
+            DA.SetData(0, new NamedGeometry(geometryName, geometries));
+        }
+
+        public class NamedGeometry
+        {
+            public string Name { get; set; }
+            public List<GeometryBase> Geometries { get; set; }
+
+            public NamedGeometry(string name, List<GeometryBase> geometries)
+            {
+                Name = name;
+                Geometries = geometries;
+            }
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component3");
+    }
+
 }
+
+    
