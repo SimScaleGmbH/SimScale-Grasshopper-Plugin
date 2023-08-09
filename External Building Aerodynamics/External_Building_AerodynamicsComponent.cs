@@ -191,19 +191,21 @@ namespace External_Building_Aerodynamics
             // to import lists or trees of values, modify the ParamAccess flag.
 
             pManager.AddGeometryParameter("Site", "Site",
-                "The part of the model that reprasents the site you are designing or analysing",
-                GH_ParamAccess.item);
+                "The part of the model that represents the site you are designing or analysing",
+                GH_ParamAccess.list);
             pManager.AddGeometryParameter("Context", "Context",
-                "The part of the model that reprasents the surounding buildings",
-                GH_ParamAccess.item);
+                "The part of the model that represents the surrounding buildings",
+                GH_ParamAccess.list);
             pManager.AddGeometryParameter("Topology", "Topology",
-                "The part of the model that reprasents the surounding buildings",
-                GH_ParamAccess.item);
+                "The part of the model that represents the surrounding buildings",
+                GH_ParamAccess.list);
 
-            // If you want to change properties of certain parameters, 
-            // you can use the pManager instance to access them by index:
-            //pManager[0].Optional = true;
+            // Make all input parameters optional
+            pManager[0].Optional = true;
+            pManager[1].Optional = true;
+            pManager[2].Optional = true;
         }
+
 
         /// <summary>
         /// Registers all the output parameters for this component.
@@ -229,8 +231,7 @@ namespace External_Building_Aerodynamics
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             string[] names = { "NS_SITE", "NS_CONTEXT", "NS_TOPOLOGY" };
-            string homePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "SimScale Geometry");
+            string homePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SimScale Geometry");
 
             // Check if the homePath exists, if not, create it
             if (!System.IO.Directory.Exists(homePath))
@@ -238,30 +239,34 @@ namespace External_Building_Aerodynamics
                 System.IO.Directory.CreateDirectory(homePath);
             }
 
+            List<string> createdStlFiles = new List<string>();
+
             for (int i = 0; i < 3; i++)
             {
-                Rhino.Geometry.GeometryBase geometry = null;
-                if (!DA.GetData(i, ref geometry)) continue;
+                List<GeometryBase> geometryList = new List<GeometryBase>();
+                if (!DA.GetDataList(i, geometryList) || geometryList.Count == 0) continue;
 
-                Rhino.Geometry.Mesh meshToExport = null;
+                Rhino.Geometry.Mesh joinedMesh = new Rhino.Geometry.Mesh();
 
-                if (geometry is Rhino.Geometry.Brep)
+                foreach (var geometry in geometryList)
                 {
-                    var brep = geometry as Rhino.Geometry.Brep;
-                    var meshes = Rhino.Geometry.Mesh.CreateFromBrep(brep, Rhino.Geometry.MeshingParameters.Default);
-                    Rhino.Geometry.Mesh joinedMesh = new Rhino.Geometry.Mesh();
-                    foreach (var submesh in meshes)
+                    if (geometry is Rhino.Geometry.Brep)
                     {
-                        joinedMesh.Append(submesh);
+                        var brep = geometry as Rhino.Geometry.Brep;
+                        var meshes = Rhino.Geometry.Mesh.CreateFromBrep(brep, Rhino.Geometry.MeshingParameters.Default);
+
+                        foreach (var submesh in meshes)
+                        {
+                            joinedMesh.Append(submesh);
+                        }
                     }
-                    meshToExport = joinedMesh;
-                }
-                else if (geometry is Rhino.Geometry.Mesh)
-                {
-                    meshToExport = geometry as Rhino.Geometry.Mesh;
+                    else if (geometry is Rhino.Geometry.Mesh)
+                    {
+                        joinedMesh.Append(geometry as Rhino.Geometry.Mesh);
+                    }
                 }
 
-                if (meshToExport == null || meshToExport.Faces.Count == 0)
+                if (joinedMesh == null || joinedMesh.Faces.Count == 0)
                 {
                     AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Failed to create a mesh from the {names[i]} geometry.");
                     continue;
@@ -270,14 +275,17 @@ namespace External_Building_Aerodynamics
                 string filePath = System.IO.Path.Combine(homePath, $"{names[i]}.stl");
 
                 // Temporarily add the mesh to the document
-                Guid meshId = Rhino.RhinoDoc.ActiveDoc.Objects.AddMesh(meshToExport);
+                Guid meshId = Rhino.RhinoDoc.ActiveDoc.Objects.AddMesh(joinedMesh);
 
                 // Select the mesh in the document
                 Rhino.RhinoDoc.ActiveDoc.Objects.Select(meshId);
 
                 // Use the script to export only the selected mesh
                 string scriptCommand = $"-Export \"{filePath}\" _Enter";
-                Rhino.RhinoApp.RunScript(scriptCommand, false);
+                if (Rhino.RhinoApp.RunScript(scriptCommand, false))
+                {
+                    createdStlFiles.Add($"{names[i]}.stl");
+                }
 
                 // Deselect the mesh after export
                 Rhino.RhinoDoc.ActiveDoc.Objects.UnselectAll();
@@ -286,34 +294,30 @@ namespace External_Building_Aerodynamics
                 Rhino.RhinoDoc.ActiveDoc.Objects.Delete(meshId, true);
             }
 
-            // ... [previous code]
-
-            //string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string zipFilePath = System.IO.Path.Combine(homePath, "Meshes.zip");
-
-            // Check if the Zip file already exists and delete it if it does
-            if (System.IO.File.Exists(zipFilePath))
+            if (createdStlFiles.Count > 0)
             {
-                System.IO.File.Delete(zipFilePath);
-            }
+                string zipFileName = createdStlFiles.Count == 1 ? createdStlFiles[0].Replace(".stl", ".zip") : "Meshes.zip";
+                string zipFilePath = System.IO.Path.Combine(homePath, zipFileName);
 
-            using (var zipArchive = System.IO.Compression.ZipFile.Open(zipFilePath, System.IO.Compression.ZipArchiveMode.Create))
-            {
-                string[] stlFiles = { "NS_SITE.stl", "NS_CONTEXT.stl", "NS_TOPOLOGY.stl" };
-
-                foreach (var stlFile in stlFiles)
+                // Check if the Zip file already exists and delete it if it does
+                if (System.IO.File.Exists(zipFilePath))
                 {
-                    string fullPath = System.IO.Path.Combine(homePath, stlFile);
-                    if (System.IO.File.Exists(fullPath))
+                    System.IO.File.Delete(zipFilePath);
+                }
+
+                using (var zipArchive = System.IO.Compression.ZipFile.Open(zipFilePath, System.IO.Compression.ZipArchiveMode.Create))
+                {
+                    foreach (var stlFile in createdStlFiles)
                     {
+                        string fullPath = System.IO.Path.Combine(homePath, stlFile);
                         zipArchive.CreateEntryFromFile(fullPath, stlFile);
+
+                        // Delete the STL file after adding it to the zip
+                        System.IO.File.Delete(fullPath);
                     }
                 }
             }
-
         }
-
-
 
 
 
