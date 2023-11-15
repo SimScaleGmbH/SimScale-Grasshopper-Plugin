@@ -2,7 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Guid_Utilities
+namespace External_Building_Aerodynamics
 {
     public static class GuidUtility
     {

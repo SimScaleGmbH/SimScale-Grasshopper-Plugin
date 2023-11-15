@@ -11,8 +11,9 @@ using Rhino.FileIO;
 using System.IO.Compression;
 
 
-using Guid_Utilities;
 using External_Building_Aerodynamics;
+using static External_Building_Aerodynamics.MeshInterpolator;
+using System.IO;
 
 namespace External_Building_Aerodynamics
 {
@@ -339,6 +340,149 @@ namespace External_Building_Aerodynamics
         }
 
         public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component3");
+    }
+
+    public class DownloadResults : GH_Component
+    {
+        public DownloadResults() : base("Download and process results", "Download", "Downloads multidirectional PWC results.", "SimScale", "Post-Processing") { }
+
+        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        {
+            pManager.AddTextParameter("Project Name", "Project", "The exact Project name including whitespace", GH_ParamAccess.item);
+            pManager.AddTextParameter("Simulation Name", "Simulation", "The exact Simulation name including whitespace", GH_ParamAccess.item);
+            pManager.AddTextParameter("Simulation Run Name", "Simulation Run", "The exact Simulation Run name including whitespace", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Run?", "Run?", "A boolean to run the component, results might take some time to download and process, so the component will only run when explicitly asked", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        {
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            string projectName = "";
+            string simulationName = "";
+            string runName = "";
+            Boolean download = false;
+
+            if (!DA.GetData(0, ref projectName)) return;
+            if (!DA.GetData(1, ref simulationName)) return;
+            if (!DA.GetData(2, ref runName)) return;
+            if (!DA.GetData(3, ref download)) return;
+
+            if (download)
+            {
+                // Instantiate the SimScalePWC class
+                var simScale = new SimScalePWCIntegration();
+
+                // Find the IDs for the project, simulation, and run
+                var projectId = simScale.FindProjectIdByName(projectName);
+                var simulationId = simScale.FindSimulationIdByName(projectId, simulationName);
+                var runId = simScale.FindRunIdByName(projectId, simulationId, runName);
+
+                // Download the comfort plot for the specified PWC simulation
+                var (directionPaths, comfortPath) = simScale.DownloadResults(projectId, simulationId, runId);
+
+                Console.WriteLine("Comfort Plot Path:");
+                Console.WriteLine(comfortPath);
+
+                Console.WriteLine("\nDirection Paths:");
+                foreach (var path in directionPaths)
+                {
+                    Console.WriteLine(path);
+                }
+
+                var outputPath = Path.Combine(simScale.WorkingDirectory, "SimScale", "speedup");
+
+                simScale.MeshInterpolator = new MeshInterpolator();
+                simScale.SpeedUpFactorPath = simScale.MeshInterpolator.createSpeedUpFactors(directionPaths, comfortPath, outputPath);
+
+                // Wrap the SimScalePWCIntegration object in a GH_Goo wrapper
+                var goo = new GH_SimScalePWCIntegrationGoo(simScale);
+
+                // Set the GH_Goo object as the output
+                DA.SetData(0, goo);
+            }
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component4");
+    }
+
+    public class CollectWindSpeeds : GH_Component
+    {
+        public CollectWindSpeeds()
+          : base("Collect Wind Speeds", "Speeds",
+              "Processes a VTU file based on wind direction and speed multiplier.",
+              "SimScale", "Post-Processing")
+        {
+        }
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Wind Direction", "Direction", "Wind direction in degrees", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Speed Multiplier", "Speed", "Multiplier for the speed values", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            pManager.AddTextParameter("obj", "OutPath", "Path to the processed VTU file", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            GH_SimScalePWCIntegrationGoo goo = null;
+            double windDirection = 0;
+            double speedMultiplier = 1;
+
+            if (!DA.GetData(0, ref goo))
+            {
+                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No SimScale object provided.");
+                return;
+            }
+
+            if (!DA.GetData(1, ref windDirection)) return;
+            if (!DA.GetData(2, ref speedMultiplier)) return;
+
+            SimScalePWCIntegration obj = goo.Value;
+
+            try
+            {
+                singleSpeed vtkProcessor = new singleSpeed(obj.SpeedUpFactorPath, windDirection, speedMultiplier);
+                obj.SingleSpeedPath = vtkProcessor.ProcessVTU();
+
+                DA.SetData(0, obj);
+            }
+            catch (Exception ex)
+            {
+                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, ex.Message);
+            }
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component5");
+    }
+
+    public class GH_SimScalePWCIntegrationParam : GH_Param<GH_SimScalePWCIntegrationGoo>
+    {
+        public GH_SimScalePWCIntegrationParam()
+          : base("SimScale Integration", "SimScale",
+                 "Holds a collection of SimScale PWC Integration objects.",
+                 "SimScale", "Parameters", GH_ParamAccess.item)
+        {
+        }
+
+        public override Guid ComponentGuid
+        {
+            get { return GuidUtility.CreateDeterministicGuid("component6"); }
+        }
+
+        public override GH_Exposure Exposure
+        {
+            get { return GH_Exposure.primary; }
+        }
+
+        // Implement any other necessary methods or properties
     }
 
 }
