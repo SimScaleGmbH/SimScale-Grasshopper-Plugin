@@ -14,6 +14,8 @@ using System.IO.Compression;
 using External_Building_Aerodynamics;
 using static External_Building_Aerodynamics.MeshInterpolator;
 using System.IO;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
 
 namespace External_Building_Aerodynamics
 {
@@ -427,7 +429,7 @@ namespace External_Building_Aerodynamics
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddTextParameter("obj", "OutPath", "Path to the processed VTU file", GH_ParamAccess.item);
+            pManager.AddTextParameter("Path", "OutPath", "Path to the processed VTU file", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -449,10 +451,10 @@ namespace External_Building_Aerodynamics
 
             try
             {
-                singleSpeed vtkProcessor = new singleSpeed(obj.SpeedUpFactorPath, windDirection, speedMultiplier);
-                obj.SingleSpeedPath = vtkProcessor.ProcessVTU();
+                singleSpeed speed = new singleSpeed(obj.SpeedUpFactorPath, windDirection, speedMultiplier);
+                obj.SingleSpeedPath = speed.ProcessVTU();
 
-                DA.SetData(0, obj);
+                DA.SetData(0, obj.SingleSpeedPath);
             }
             catch (Exception ex)
             {
@@ -461,6 +463,65 @@ namespace External_Building_Aerodynamics
         }
 
         public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component5");
+    }
+
+    public class VTUToRhinoMeshComponent : GH_Component
+    {
+        public VTUToRhinoMeshComponent()
+            : base("VTUToRhinoMesh", "Convert",
+              "Convert a VTU file to Rhino mesh and values.",
+              "SimScale", "Post-Processing")
+        {
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component6");
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            pManager.AddTextParameter("VTU File Path", "Path", "Path to the VTU file", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            // Add an output parameter for the mesh
+            pManager.AddMeshParameter("Mesh", "Mesh", "Converted Rhino Mesh", GH_ParamAccess.item);
+
+            // Add an output parameter for the data values
+            pManager.AddNumberParameter("Data Values", "Values", "Data values corresponding to mesh vertices", GH_ParamAccess.list);
+        }
+
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            string filePath = null;
+            if (!DA.GetData(0, ref filePath)) return;
+
+            string dataFieldName = "Speed (m/s)"; // Replace with the actual data field name
+
+            // Read the VTU file and convert it to a Rhino Mesh with data values
+            (GH_Mesh ghMesh, List<GH_Number> ghDataValues) = ConvertVTUToMeshes(filePath, dataFieldName);
+
+            // Set the data
+            DA.SetData(0, ghMesh);
+            DA.SetDataList(1, ghDataValues); // Ensure you have a second output parameter for these values
+        }
+
+        private (GH_Mesh, List<GH_Number>) ConvertVTUToMeshes(string filePath, string dataFieldName)
+        {
+            // Implement the logic to read VTU file, convert to Rhino Meshes
+            // and extract values
+            (Mesh rhinoMesh, List<double> dataValues) = VTUToRhinoMesh.ConvertVTUToRhinoMesh(filePath, dataFieldName);
+
+            var ghMesh = new Grasshopper.Kernel.Types.GH_Mesh(rhinoMesh);
+            var ghDataValues = new List<Grasshopper.Kernel.Types.GH_Number>();
+            foreach (var val in dataValues)
+            {
+                ghDataValues.Add(new Grasshopper.Kernel.Types.GH_Number(val));
+            }
+
+            // Return the Grasshopper mesh and data values
+            return (ghMesh, ghDataValues);
+        }
     }
 
     public class GH_SimScalePWCIntegrationParam : GH_Param<GH_SimScalePWCIntegrationGoo>
@@ -474,7 +535,7 @@ namespace External_Building_Aerodynamics
 
         public override Guid ComponentGuid
         {
-            get { return GuidUtility.CreateDeterministicGuid("component6"); }
+            get { return GuidUtility.CreateDeterministicGuid("component100"); }
         }
 
         public override GH_Exposure Exposure

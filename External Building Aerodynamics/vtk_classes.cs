@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Kitware.VTK;
+using Rhino.Geometry;
 
 namespace External_Building_Aerodynamics
 {
@@ -367,63 +369,188 @@ namespace External_Building_Aerodynamics
 
             // Setting up WindDirectionPaths (Replace these with your actual paths)
             interpolator.WindDirectionPaths = directionPaths;
-            
+
             return interpolator.ProcessDatasets("Velocity_n", outputPath);
         }
 
         public class singleSpeed
+        {
+            private string inputFilePath;
+            private double windDirection;
+            private double speedMultiplier;
+            private string outputFilePath;
+
+            public singleSpeed(string inputFilePath, double windDirection, double speed)
             {
-                private string inputFilePath;
-                private double windDirection;
-                private double speedMultiplier;
-                private string outputFilePath;
+                this.inputFilePath = inputFilePath;
+                this.windDirection = windDirection;
+                this.speedMultiplier = speed;
+                this.outputFilePath = Path.Combine(Path.GetDirectoryName(inputFilePath), "single_speed.vtu");
+            }
 
-                public singleSpeed(string inputFilePath, double windDirection, double speed)
+            public string ProcessVTU()
+            {
+                // Load the VTU file
+                var reader = vtkXMLUnstructuredGridReader.New();
+                reader.SetFileName(inputFilePath);
+                reader.Update();
+
+                vtkUnstructuredGrid data = reader.GetOutput();
+
+                // Round wind direction and select nearest field
+                string selectedFieldName = SelectNearestField(data, windDirection);
+
+                // Multiply the field values
+                MultiplyFieldValues(data, selectedFieldName, speedMultiplier);
+
+                // Write to a new VTU file
+                vtkXMLUnstructuredGridWriter writer = vtkXMLUnstructuredGridWriter.New();
+                writer.SetFileName(outputFilePath);
+                writer.SetInputData(data);
+                writer.Write();
+
+                return outputFilePath;
+            }
+
+            private string SelectNearestField(vtkUnstructuredGrid data, double direction)
+            {
+                // Assuming fields are named after their angles, e.g., "0", "45", "90", etc.
+                // You'll need to replace this with the actual way fields are named in your dataset
+                List<double> availableAngles = new List<double>();
+
+                // Populate availableAngles with the angles from the dataset fields
+                for (int i = 0; i < data.GetPointData().GetNumberOfArrays(); i++)
                 {
-                    this.inputFilePath = inputFilePath;
-                    this.windDirection = windDirection;
-                    this.speedMultiplier = speed;
-                    this.outputFilePath = Path.Combine(Path.GetDirectoryName(inputFilePath), "temp_output.vtu");
+                    string fieldName = data.GetPointData().GetArrayName(i);
+                    if (double.TryParse(fieldName, out double angle))
+                    {
+                        availableAngles.Add(angle);
+                    }
                 }
 
-                public string ProcessVTU()
-                {
-                    // Load the VTU file
-                    var reader = vtkXMLUnstructuredGridReader.New();
-                    reader.SetFileName(inputFilePath);
-                    reader.Update();
+                // Normalize the direction to be within [0, 360)
+                direction = direction % 360;
+                if (direction < 0) direction += 360;
 
-                    vtkUnstructuredGrid data = reader.GetOutput();
+                // Find the nearest angle
+                double nearestAngle = availableAngles.OrderBy(a => Math.Abs(direction - a)).First();
 
-                    // Round wind direction and select nearest field
-                    string selectedFieldName = SelectNearestField(data, windDirection);
-
-                    // Multiply the field values
-                    MultiplyFieldValues(data, selectedFieldName, speedMultiplier);
-
-                    // Write to a new VTU file
-                    vtkXMLUnstructuredGridWriter writer = vtkXMLUnstructuredGridWriter.New();
-                    writer.SetFileName(outputFilePath);
-                    writer.SetInputData(data);
-                    writer.Write();
-
-                    return outputFilePath;
-                }
-
-                private string SelectNearestField(vtkUnstructuredGrid data, double direction)
-                {
-                    // Logic to round the direction and select the nearest field
-                    // Placeholder - implement based on your specific needs
-                    return "nearest_field_name";
-                }
-
-                private void MultiplyFieldValues(vtkUnstructuredGrid data, string fieldName, double multiplier)
-                {
-                    // Logic to multiply the field values
-                    // Placeholder - implement based on your specific needs
-                }
+                // Return the corresponding field name
+                return nearestAngle.ToString();
             }
 
 
+            private void MultiplyFieldValues(vtkUnstructuredGrid data, string arrayName, double multiplier)
+            {
+                // Access the field from the data
+                var pointData = data.GetPointData();
+                var originalArray = pointData.GetArray(arrayName);
+
+                if (originalArray != null)
+                {
+                    var tempArrayName = "TempSpeedArray";
+                    originalArray.SetName(tempArrayName);  // Temporarily rename the array
+
+                    var calculator = vtkArrayCalculator.New();
+                    calculator.SetInputData(data);
+                    calculator.AddScalarVariable("tempVar", tempArrayName, 0);  // Set the alias for the array
+                    calculator.SetFunction($"tempVar * {multiplier}");
+                    calculator.SetResultArrayName("Speed (m/s)");
+                    calculator.Update();
+
+                    // Replace the data with the calculator's output
+                    data.DeepCopy(calculator.GetOutput());
+
+                    // Remove the temporary array
+                    //data.GetPointData().RemoveArray(tempArrayName);
+
+                    RetainOnlyTargetField(data, "Speed (m/s)");
+                }
+                else
+                {
+                    throw new ArgumentException($"Field '{arrayName}' not found in the dataset.");
+                }
+            }
+
+            public void RetainOnlyTargetField(vtkUnstructuredGrid dataset, string targetFieldName)
+            {
+                if (dataset == null)
+                    return;
+
+                vtkPointData pointData = dataset.GetPointData();
+                if (pointData != null)
+                {
+                    int numArrays = pointData.GetNumberOfArrays();
+                    for (int j = numArrays - 1; j >= 0; j--)
+                    {
+                        vtkDataArray dataArray = pointData.GetArray(j);
+                        if (dataArray != null)
+                        {
+                            string arrayName = dataArray.GetName();
+                            if (arrayName != targetFieldName)
+                            {
+                                pointData.RemoveArray(arrayName);
+                                Console.WriteLine($"Removed array: {arrayName}");
+                            }
+                        }
+                    }
+                }
+            }
+
         }
+
+        public class VTUToRhinoMesh
+        {
+            public static (Mesh, List<double>) ConvertVTUToRhinoMesh(string vtuFilePath, string dataFieldName)
+            {
+                // Read the VTU file
+                var reader = vtkXMLUnstructuredGridReader.New();
+                reader.SetFileName(vtuFilePath);
+                reader.Update();
+
+                vtkUnstructuredGrid unstructuredGrid = reader.GetOutput();
+
+                // Convert to a Rhino mesh
+                Mesh rhinoMesh = new Mesh();
+                List<double> dataValues = new List<double>();
+
+                // Extract points and corresponding data values
+                for (int i = 0; i < unstructuredGrid.GetNumberOfPoints(); i++)
+                {
+                    double[] point = unstructuredGrid.GetPoint(i);
+                    rhinoMesh.Vertices.Add(new Point3d(point[0], point[1], point[2]));
+
+                    // Extract data value for this point
+                    vtkDataArray dataArray = unstructuredGrid.GetPointData().GetArray(dataFieldName);
+                    if (dataArray != null)
+                    {
+                        double dataValue = dataArray.GetComponent(i, 0); // Assuming scalar data
+                        dataValues.Add(dataValue);
+                    }
+                    else
+                    {
+                        // Handle missing data appropriately
+                        dataValues.Add(0.0); // Example: default to 0 if data is missing
+                    }
+                }
+
+                // Extract cells (faces)
+                for (int i = 0; i < unstructuredGrid.GetNumberOfCells(); i++)
+                {
+                    vtkCell cell = unstructuredGrid.GetCell(i);
+                    if (cell.GetCellType() == 5) // VTK_TRIANGLE
+                    {
+                        vtkIdList pointIds = cell.GetPointIds();
+                        rhinoMesh.Faces.AddFace((int)pointIds.GetId(0), (int)pointIds.GetId(1), (int)pointIds.GetId(2));
+                    }
+                    // Handle other cell types as needed
+                }
+
+                rhinoMesh.Normals.ComputeNormals();
+                rhinoMesh.Compact();
+
+                return (rhinoMesh, dataValues);
+            }
+        }
+    }
 }
