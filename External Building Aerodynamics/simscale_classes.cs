@@ -304,7 +304,13 @@ namespace External_Building_Aerodynamics
             return (directionPaths, comfortPlotPath);
         }
 
+        public void reduceMesh(string path, double reductionFactor)
+        {
+            string outputPath = Path.Combine(WorkingDirectory, "SimScale", "speedup", "speed_up_factors_reduced.vtu");
+            MeshInterpolator.meshReduction.ReduceMeshResolution(path, outputPath, reductionFactor);
 
+            SpeedUpFactorPath = outputPath;
+        }
 
         // Additional methods or logic if needed
     }

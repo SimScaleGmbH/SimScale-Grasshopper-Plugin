@@ -552,5 +552,95 @@ namespace External_Building_Aerodynamics
                 return (rhinoMesh, dataValues);
             }
         }
+
+        public static class VTUNames
+        {
+            public static List<string> GetArrayNamesFromVTUFile(string vtuFilePath)
+            {
+                List<string> arrayNames = new List<string>();
+
+                var reader = vtkXMLUnstructuredGridReader.New();
+                reader.SetFileName(vtuFilePath);
+                reader.Update();
+                vtkUnstructuredGrid data = reader.GetOutput();
+
+                if (data != null)
+                {
+                    var pointData = data.GetPointData();
+                    for (int i = 0; i < pointData.GetNumberOfArrays(); i++)
+                    {
+                        string arrayName = pointData.GetArray(i).GetName();
+                        arrayNames.Add(arrayName);
+                    }
+                }
+
+                // Separate numeric and non-numeric names
+                var numericNames = arrayNames
+                    .Where(name => double.TryParse(name, out _))
+                    .Select(name => new { Original = name, Number = double.Parse(name) });
+
+                var nonNumericNames = arrayNames
+                    .Where(name => !double.TryParse(name, out _));
+
+                // Sort numeric names and format them
+                var sortedFormattedNumericNames = numericNames
+                    .OrderBy(n => n.Number)
+                    .Select(n => n.Number.ToString("0.0"))
+                    .ToList();
+
+                // Combine numeric and non-numeric names, keeping the original order for non-numeric
+                return sortedFormattedNumericNames.Concat(nonNumericNames).ToList();
+            }
+        }
+        public static class meshReduction
+        {
+            public static void ReduceMeshResolution(string inputFilePath, string outputFilePath, double reductionFactor)
+            {
+                // Read the VTU file
+                var reader = vtkXMLUnstructuredGridReader.New();
+                reader.SetFileName(inputFilePath);
+                reader.Update();
+
+                vtkUnstructuredGrid originalGrid = reader.GetOutput();
+
+                // Convert Unstructured Grid to PolyData
+                var geometryFilter = vtkGeometryFilter.New();
+                geometryFilter.SetInputConnection(reader.GetOutputPort());
+                geometryFilter.Update();
+
+                // Apply Decimation
+                var decimate = vtkDecimatePro.New();
+                decimate.SetInputConnection(geometryFilter.GetOutputPort());
+                decimate.SetTargetReduction(reductionFactor); // e.g., 0.5 for 50% reduction
+                decimate.Update();
+
+                // Convert Decimated PolyData Back to UnstructuredGrid
+                vtkPolyData polyData = decimate.GetOutput();
+                vtkUnstructuredGrid newUnstructuredGrid = vtkUnstructuredGrid.New();
+                newUnstructuredGrid.SetPoints(polyData.GetPoints());
+
+                // Transfer point data
+                newUnstructuredGrid.GetPointData().ShallowCopy(originalGrid.GetPointData());
+
+                for (int i = 0; i < polyData.GetNumberOfCells(); i++)
+                {
+                    vtkCell cell = polyData.GetCell(i);
+                    newUnstructuredGrid.InsertNextCell(cell.GetCellType(), cell.GetPointIds());
+                }
+
+                // Transfer cell data
+                // This step is more complex and might need special handling based on your data
+
+                // Write the New UnstructuredGrid to a VTU File
+                var writer = vtkXMLUnstructuredGridWriter.New();
+                writer.SetFileName(outputFilePath);
+                writer.SetInputData(newUnstructuredGrid);
+                writer.Write();
+            }
+
+
+        }
+
+
     }
 }

@@ -16,6 +16,7 @@ using static External_Building_Aerodynamics.MeshInterpolator;
 using System.IO;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+using Kitware.VTK;
 
 namespace External_Building_Aerodynamics
 {
@@ -429,7 +430,9 @@ namespace External_Building_Aerodynamics
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
             pManager.AddTextParameter("Path", "OutPath", "Path to the processed VTU file", GH_ParamAccess.item);
+
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -454,7 +457,12 @@ namespace External_Building_Aerodynamics
                 singleSpeed speed = new singleSpeed(obj.SpeedUpFactorPath, windDirection, speedMultiplier);
                 obj.SingleSpeedPath = speed.ProcessVTU();
 
-                DA.SetData(0, obj.SingleSpeedPath);
+                // Wrap the SimScalePWCIntegration object in a GH_Goo wrapper
+                goo = new GH_SimScalePWCIntegrationGoo(obj);
+
+                // Set the GH_Goo object as the output
+                DA.SetData(0, goo);
+                DA.SetData(1, obj.SingleSpeedPath);
             }
             catch (Exception ex)
             {
@@ -479,6 +487,7 @@ namespace External_Building_Aerodynamics
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddTextParameter("VTU File Path", "Path", "Path to the VTU file", GH_ParamAccess.item);
+            pManager.AddTextParameter("Field", "Field", "The name of the field you wish to import", GH_ParamAccess.item);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -494,9 +503,10 @@ namespace External_Building_Aerodynamics
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             string filePath = null;
-            if (!DA.GetData(0, ref filePath)) return;
+            string dataFieldName = null;
 
-            string dataFieldName = "Speed (m/s)"; // Replace with the actual data field name
+            if (!DA.GetData(0, ref filePath)) return;
+            if (!DA.GetData(1, ref dataFieldName)) return;
 
             // Read the VTU file and convert it to a Rhino Mesh with data values
             (GH_Mesh ghMesh, List<GH_Number> ghDataValues) = ConvertVTUToMeshes(filePath, dataFieldName);
@@ -521,6 +531,136 @@ namespace External_Building_Aerodynamics
 
             // Return the Grasshopper mesh and data values
             return (ghMesh, ghDataValues);
+        }
+    }
+
+    public class VTKArrayNamesComponent : GH_Component
+    {
+        public VTKArrayNamesComponent()
+          : base("Get result names", "ResultNames",
+              "Gets the array names from a vtk fields",
+              "SimScale", "Post-Processing")
+        {
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component7");
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            pManager.AddTextParameter("VTU File Path", "Path", "Path to the VTU file", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            pManager.AddTextParameter("Array Names", "Names", "List of array names in the VTU file", GH_ParamAccess.list);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            string vtuFilePath = null;
+
+            if (!DA.GetData(0, ref vtuFilePath)) return;
+
+            // Use the utility method to get array names
+            var arrayNames = VTUNames.GetArrayNamesFromVTUFile(vtuFilePath);
+
+            // Set the output
+            DA.SetDataList(0, arrayNames);
+        }
+    }
+
+    public class SimScalePathsComponent : GH_Component
+    {
+        public SimScalePathsComponent()
+          : base("SimScale Paths", "SimScalePaths",
+              "Gets paths from a SimScale object",
+              "Category", "Subcategory")
+        {
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component8");
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            pManager.AddTextParameter("Speed Up Factor Path", "SUF", "Speed Up Factor file path", GH_ParamAccess.item);
+            pManager.AddTextParameter("Single Speed Path", "SS", "Single Speed file path", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            GH_SimScalePWCIntegrationGoo goo = null;
+
+            if (!DA.GetData(0, ref goo))
+            {
+                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No SimScale object provided.");
+                return;
+            }
+
+            SimScalePWCIntegration obj = goo.Value;
+
+            // Extract the paths
+            string speedUpFactorPath = obj.SpeedUpFactorPath;
+            string singleSpeedPath = obj.SingleSpeedPath;
+
+            // Set the output data
+            DA.SetData(0, speedUpFactorPath);
+            DA.SetData(1, singleSpeedPath);
+        }
+    }
+
+    public class ReduceMeshComponent : GH_Component
+    {
+        public ReduceMeshComponent()
+            : base("Reduce Mesh", "ReduceMesh",
+                "Reduces the mesh resolution of a SimScale object",
+                "SimScale", "Post-Processing")
+        {
+        }
+
+        public override Guid ComponentGuid => GuidUtility.CreateDeterministicGuid("component9");
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            // Assuming SimScaleObject is a class. Replace with the correct type if it's different.
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Reduction Factor", "R", "Mesh reduction factor", GH_ParamAccess.item);
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            GH_SimScalePWCIntegrationGoo goo = null;
+            double reductionFactor = 0;
+
+            if (!DA.GetData(0, ref goo))
+            {
+                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No SimScale object provided.");
+                return;
+            }
+
+            if (!DA.GetData(1, ref reductionFactor)) return;
+
+            SimScalePWCIntegration obj = goo.Value;
+
+            if (!DA.GetData(1, ref reductionFactor)) return;
+
+            // Call the reduceMesh method
+            obj.reduceMesh(obj.SpeedUpFactorPath, reductionFactor);
+
+            // Wrap the SimScalePWCIntegration object in a GH_Goo wrapper
+            goo = new GH_SimScalePWCIntegrationGoo(obj);
+
+            // Set the GH_Goo object as the output
+            DA.SetData(0, goo);
         }
     }
 
