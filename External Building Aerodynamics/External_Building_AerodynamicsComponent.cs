@@ -628,7 +628,7 @@ namespace External_Building_Aerodynamics
         {
             // Assuming SimScaleObject is a class. Replace with the correct type if it's different.
             pManager.AddParameter(new GH_SimScalePWCIntegrationParam(), "SimScale Object", "Obj", "A SimScale object that contains all the information required for later processing", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Reduction Factor", "R", "Mesh reduction factor", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Target resolution", "Resolution", "Mesh target resolution", GH_ParamAccess.item);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -639,7 +639,7 @@ namespace External_Building_Aerodynamics
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             GH_SimScalePWCIntegrationGoo goo = null;
-            double reductionFactor = 0;
+            double targetResolution = 0;
 
             if (!DA.GetData(0, ref goo))
             {
@@ -647,14 +647,14 @@ namespace External_Building_Aerodynamics
                 return;
             }
 
-            if (!DA.GetData(1, ref reductionFactor)) return;
+            if (!DA.GetData(1, ref targetResolution)) return;
 
             SimScalePWCIntegration obj = goo.Value;
 
-            if (!DA.GetData(1, ref reductionFactor)) return;
+            if (!DA.GetData(1, ref targetResolution)) return;
 
             // Call the reduceMesh method
-            obj.reduceMesh(obj.SpeedUpFactorPath, reductionFactor);
+            obj.reduceMesh(obj.SpeedUpFactorPath, targetResolution);
 
             // Wrap the SimScalePWCIntegration object in a GH_Goo wrapper
             goo = new GH_SimScalePWCIntegrationGoo(obj);

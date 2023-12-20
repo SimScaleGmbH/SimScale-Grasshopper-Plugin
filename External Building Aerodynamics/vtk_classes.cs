@@ -436,7 +436,7 @@ namespace External_Building_Aerodynamics
                 double nearestAngle = availableAngles.OrderBy(a => Math.Abs(direction - a)).First();
 
                 // Return the corresponding field name
-                return nearestAngle.ToString();
+                return nearestAngle.ToString("0.0");
             }
 
 
@@ -499,7 +499,7 @@ namespace External_Building_Aerodynamics
 
         }
 
-        public class VTUToRhinoMesh
+    public class VTUToRhinoMesh
         {
             public static (Mesh, List<double>) ConvertVTUToRhinoMesh(string vtuFilePath, string dataFieldName)
             {
@@ -510,50 +510,93 @@ namespace External_Building_Aerodynamics
 
                 vtkUnstructuredGrid unstructuredGrid = reader.GetOutput();
 
+                // Extract the data array outside the loop
+                vtkDataArray dataArray = unstructuredGrid.GetPointData().GetArray(dataFieldName);
+
                 // Convert to a Rhino mesh
                 Mesh rhinoMesh = new Mesh();
                 List<double> dataValues = new List<double>();
 
-                // Extract points and corresponding data values
-                for (int i = 0; i < unstructuredGrid.GetNumberOfPoints(); i++)
-                {
-                    double[] point = unstructuredGrid.GetPoint(i);
-                    rhinoMesh.Vertices.Add(new Point3d(point[0], point[1], point[2]));
-
-                    // Extract data value for this point
-                    vtkDataArray dataArray = unstructuredGrid.GetPointData().GetArray(dataFieldName);
-                    if (dataArray != null)
-                    {
-                        double dataValue = dataArray.GetComponent(i, 0); // Assuming scalar data
-                        dataValues.Add(dataValue);
-                    }
-                    else
-                    {
-                        // Handle missing data appropriately
-                        dataValues.Add(0.0); // Example: default to 0 if data is missing
-                    }
-                }
-
-                // Extract cells (faces)
+                // Pass One: Identify points used in cells
+                HashSet<long> usedPointIds = new HashSet<long>();
                 for (int i = 0; i < unstructuredGrid.GetNumberOfCells(); i++)
                 {
                     vtkCell cell = unstructuredGrid.GetCell(i);
+                    vtkIdList pointIds = cell.GetPointIds();
+                    for (int j = 0; j < pointIds.GetNumberOfIds(); j++)
+                    {
+                        usedPointIds.Add(pointIds.GetId(j));
+                    }
+                }
+
+                // Pass Two: Add points and cells to the Rhino mesh
+                Dictionary<long, int> pointIndexMap = new Dictionary<long, int>();
+                foreach (long pointId in usedPointIds)
+                {
+                    double[] point = unstructuredGrid.GetPoint((int)pointId);
+                    Point3d rhinoPoint = new Point3d(point[0], point[1], point[2]);
+                    int rhinoPointIndex = rhinoMesh.Vertices.Add(rhinoPoint);
+                    pointIndexMap.Add(pointId, rhinoPointIndex);
+                }
+
+                for (int i = 0; i < unstructuredGrid.GetNumberOfCells(); i++)
+                {
+                    vtkCell cell = unstructuredGrid.GetCell(i);
+                    vtkIdList pointIds = cell.GetPointIds();
+
                     if (cell.GetCellType() == 5) // VTK_TRIANGLE
                     {
-                        vtkIdList pointIds = cell.GetPointIds();
-                        rhinoMesh.Faces.AddFace((int)pointIds.GetId(0), (int)pointIds.GetId(1), (int)pointIds.GetId(2));
+                        rhinoMesh.Faces.AddFace(
+                            pointIndexMap[(long)pointIds.GetId(0)],
+                            pointIndexMap[(long)pointIds.GetId(1)],
+                            pointIndexMap[(long)pointIds.GetId(2)]);
+                    }
+                    else if (cell.GetCellType() == 9) // VTK_QUAD
+                    {
+                        rhinoMesh.Faces.AddFace(
+                            pointIndexMap[(long)pointIds.GetId(0)],
+                            pointIndexMap[(long)pointIds.GetId(1)],
+                            pointIndexMap[(long)pointIds.GetId(2)],
+                            pointIndexMap[(long)pointIds.GetId(3)]);
                     }
                     // Handle other cell types as needed
                 }
 
+                // Pass Three: Add data values for used points
+                foreach (long pointId in usedPointIds)
+                {
+                    if (dataArray != null)
+                    {
+                        double dataValue = dataArray.GetComponent((int)pointId, 0); // Assuming scalar data
+                        dataValues.Add(dataValue);
+                    }
+                    else
+                    {
+                        dataValues.Add(0.0); // Default to 0 if data is missing
+                    }
+                }
+
+                // Compute normals for the mesh
                 rhinoMesh.Normals.ComputeNormals();
+
+                // Compact the mesh to clean up unused elements
                 rhinoMesh.Compact();
 
+                // Verify data consistency
+                if (rhinoMesh.Vertices.Count != dataValues.Count)
+                {
+                    string message = $"Inconsistency found: Number of mesh vertices ({rhinoMesh.Vertices.Count}) " +
+                                     $"does not match the number of data points ({dataValues.Count}).";
+                    throw new InvalidOperationException(message);
+                }
+
+                // Return the constructed Rhino mesh and the corresponding data values
                 return (rhinoMesh, dataValues);
             }
         }
 
-        public static class VTUNames
+
+    public static class VTUNames
         {
             public static List<string> GetArrayNamesFromVTUFile(string vtuFilePath)
             {
@@ -592,9 +635,10 @@ namespace External_Building_Aerodynamics
                 return sortedFormattedNumericNames.Concat(nonNumericNames).ToList();
             }
         }
-        public static class meshReduction
+
+    public static class MeshReduction
         {
-            public static void ReduceMeshResolution(string inputFilePath, string outputFilePath, double reductionFactor)
+            public static void ReduceMeshResolution(string inputFilePath, string outputFilePath, double targetResolution)
             {
                 // Read the VTU file
                 var reader = vtkXMLUnstructuredGridReader.New();
@@ -603,43 +647,91 @@ namespace External_Building_Aerodynamics
 
                 vtkUnstructuredGrid originalGrid = reader.GetOutput();
 
+                // Reduce the mesh resolution
+                vtkUnstructuredGrid reducedGrid = ReduceMesh(originalGrid, targetResolution);
+
+                // Resample data from the original grid to the reduced grid
+                vtkUnstructuredGrid resampledGrid = ResampleData(originalGrid, reducedGrid);
+
+                // Write the resampled and reduced grid to a VTU file
+                WriteUnstructuredGridToFile(resampledGrid, outputFilePath);
+            }
+
+            private static vtkUnstructuredGrid ReduceMesh(vtkUnstructuredGrid originalGrid, double targetResolution)
+            {
                 // Convert Unstructured Grid to PolyData
                 var geometryFilter = vtkGeometryFilter.New();
-                geometryFilter.SetInputConnection(reader.GetOutputPort());
+                geometryFilter.SetInputData(originalGrid);
                 geometryFilter.Update();
 
-                // Apply Decimation
-                var decimate = vtkDecimatePro.New();
-                decimate.SetInputConnection(geometryFilter.GetOutputPort());
-                decimate.SetTargetReduction(reductionFactor); // e.g., 0.5 for 50% reduction
-                decimate.Update();
+                // Create a Quadric Clustering filter
+                var quadricClustering = vtkQuadricClustering.New();
+                quadricClustering.SetInputConnection(geometryFilter.GetOutputPort());
 
-                // Convert Decimated PolyData Back to UnstructuredGrid
-                vtkPolyData polyData = decimate.GetOutput();
-                vtkUnstructuredGrid newUnstructuredGrid = vtkUnstructuredGrid.New();
-                newUnstructuredGrid.SetPoints(polyData.GetPoints());
+                // Compute divisions based on target resolution
+                int[] divisions = ComputeDivisions(originalGrid, targetResolution);
+                quadricClustering.SetNumberOfXDivisions(divisions[0]);
+                quadricClustering.SetNumberOfYDivisions(divisions[1]);
+                quadricClustering.SetNumberOfZDivisions(divisions[2]);
+                quadricClustering.Update();
 
-                // Transfer point data
-                newUnstructuredGrid.GetPointData().ShallowCopy(originalGrid.GetPointData());
+                // Reduced PolyData from Quadric Clustering
+                vtkPolyData reducedPolyData = quadricClustering.GetOutput();
 
-                for (int i = 0; i < polyData.GetNumberOfCells(); i++)
-                {
-                    vtkCell cell = polyData.GetCell(i);
-                    newUnstructuredGrid.InsertNextCell(cell.GetCellType(), cell.GetPointIds());
-                }
+                // Use vtkAppendFilter to convert PolyData to UnstructuredGrid
+                var appendFilter = vtkAppendFilter.New();
+                appendFilter.AddInputData(reducedPolyData);
+                appendFilter.Update();
 
-                // Transfer cell data
-                // This step is more complex and might need special handling based on your data
+                // Get the output as UnstructuredGrid
+                vtkUnstructuredGrid newUnstructuredGrid = vtkUnstructuredGrid.SafeDownCast(appendFilter.GetOutput());
 
-                // Write the New UnstructuredGrid to a VTU File
-                var writer = vtkXMLUnstructuredGridWriter.New();
-                writer.SetFileName(outputFilePath);
-                writer.SetInputData(newUnstructuredGrid);
-                writer.Write();
+                return newUnstructuredGrid;
             }
 
 
+            private static vtkUnstructuredGrid ResampleData(vtkUnstructuredGrid originalGrid, vtkUnstructuredGrid reducedGrid)
+            {
+                var resampler = vtkResampleWithDataSet.New();
+                resampler.SetInputData(reducedGrid);
+                resampler.SetSourceData(originalGrid);
+                resampler.Update();
+
+                // Check if the output can be cast to vtkUnstructuredGrid
+                if (resampler.GetOutput() is vtkUnstructuredGrid outputGrid)
+                {
+                    return outputGrid;
+                }
+                else
+                {
+                    // Handle the case where the output is not a vtkUnstructuredGrid
+                    // For example, log an error or throw an exception
+                    throw new InvalidOperationException("Resampling did not produce a vtkUnstructuredGrid.");
+                }
+            }
+
+            private static void WriteUnstructuredGridToFile(vtkUnstructuredGrid grid, string filePath)
+            {
+                var writer = vtkXMLUnstructuredGridWriter.New();
+                writer.SetFileName(filePath);
+                writer.SetInputData(grid);
+                writer.Write();
+            }
+
+            private static int[] ComputeDivisions(vtkUnstructuredGrid grid, double targetResolution)
+            {
+                double[] bounds = grid.GetBounds();
+                int divisionsX = Math.Max(1, (int)Math.Round((bounds[1] - bounds[0]) / targetResolution));
+                int divisionsY = Math.Max(1, (int)Math.Round((bounds[3] - bounds[2]) / targetResolution));
+                int divisionsZ = Math.Max(1, (int)Math.Round((bounds[5] - bounds[4]) / targetResolution));
+
+                return new int[] { divisionsX, divisionsY, divisionsZ };
+            }
         }
+
+
+
+
 
 
     }

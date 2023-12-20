@@ -307,7 +307,7 @@ namespace External_Building_Aerodynamics
         public void reduceMesh(string path, double reductionFactor)
         {
             string outputPath = Path.Combine(WorkingDirectory, "SimScale", "speedup", "speed_up_factors_reduced.vtu");
-            MeshInterpolator.meshReduction.ReduceMeshResolution(path, outputPath, reductionFactor);
+            MeshInterpolator.MeshReduction.ReduceMeshResolution(path, outputPath, reductionFactor);
 
             SpeedUpFactorPath = outputPath;
         }
