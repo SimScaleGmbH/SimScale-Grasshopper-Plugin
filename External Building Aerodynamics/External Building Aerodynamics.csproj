@@ -20,14 +20,14 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Reference Include="Kitware.mummy.Runtime">
-      <HintPath>E:\Downloads\bin\Kitware.mummy.Runtime.dll</HintPath>
-    </Reference>
-    <Reference Include="Kitware.VTK">
-      <HintPath>E:\Downloads\bin\Kitware.VTK.dll</HintPath>
-    </Reference>
     <Reference Include="SimScale.Sdk">
-      <HintPath>E:\Downloads\simscale-csharp-sdk-master\simscale-csharp-sdk-master\src\SimScale.Sdk\bin\Debug\netstandard2.0\SimScale.Sdk.dll</HintPath>
-    </Reference>
+      <HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\SimScale.Sdk.dll</HintPath>
+	</Reference>
+	<Reference Include="Kitware.mummy.Runtime">
+		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.mummy.Runtime.dll</HintPath>
+	</Reference>
+	<Reference Include="Kitware.VTK">
+		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
+	</Reference>
   </ItemGroup>
 </Project>

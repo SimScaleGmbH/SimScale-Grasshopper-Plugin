@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Kitware.VTK;
 using Rhino.Geometry;
 
 namespace External_Building_Aerodynamics
 {
+
     public class MeshInterpolator
     {
         private string _comfortPlotPath;
@@ -26,6 +28,35 @@ namespace External_Building_Aerodynamics
                     throw new FileNotFoundException($"The file at {value} was not found.");
                 }
             }
+        }
+
+        public static vtkPolyData ResampleWithSymmetricExtrusion(vtkPolyData sourceData, double thickness)
+        {
+            // Extrude the source dataset positively
+            var extrudePositive = vtkLinearExtrusionFilter.New();
+            extrudePositive.SetInputData(sourceData);
+            extrudePositive.SetExtrusionTypeToVectorExtrusion();
+            extrudePositive.SetVector(0, 0, thickness); // Extrude along the z-axis with the specified thickness
+            extrudePositive.Update();
+
+            // Extrude the source dataset negatively
+            var extrudeNegative = vtkLinearExtrusionFilter.New();
+            extrudeNegative.SetInputData(sourceData);
+            extrudeNegative.SetExtrusionTypeToVectorExtrusion();
+            extrudeNegative.SetVector(0, 0, -thickness); // Extrude along the negative z-axis with the specified thickness
+            extrudeNegative.Update();
+
+            // Combine the positive and negative extrusions
+            var appendFilter = vtkAppendPolyData.New();
+            appendFilter.AddInputData(extrudePositive.GetOutput());
+            appendFilter.AddInputData(extrudeNegative.GetOutput());
+            appendFilter.Update();
+
+            // Combine the surfaces into a single polydata
+            var polyData = vtkPolyData.New();
+            polyData.DeepCopy(appendFilter.GetOutput());
+
+            return polyData;
         }
 
         private List<string> _windDirectionPaths;
@@ -125,6 +156,9 @@ namespace External_Building_Aerodynamics
 
             foreach (var windDirectionDataset in windDirectionDatasets)
             {
+
+                //ResampleWithSymmetricExtrusion(vtkPolyData windDirectionDataset, 1);
+
                 var resampler = vtkResampleWithDataSet.New();
                 resampler.SetInputData(filteredBlocks);
                 resampler.SetSourceData(windDirectionDataset);
@@ -636,7 +670,7 @@ namespace External_Building_Aerodynamics
             }
         }
 
-    public static class MeshReduction
+        public static class MeshReduction
         {
             public static void ReduceMeshResolution(string inputFilePath, string outputFilePath, double targetResolution)
             {
@@ -651,7 +685,7 @@ namespace External_Building_Aerodynamics
                 vtkUnstructuredGrid reducedGrid = ReduceMesh(originalGrid, targetResolution);
 
                 // Resample data from the original grid to the reduced grid
-                vtkUnstructuredGrid resampledGrid = ResampleData(originalGrid, reducedGrid);
+                vtkUnstructuredGrid resampledGrid = ResampleData(originalGrid, reducedGrid, "C:\\Users\\darre\\SimScale\\speedup/extrudedMesh.vtu", 0.5);
 
                 // Write the resampled and reduced grid to a VTU file
                 WriteUnstructuredGridToFile(resampledGrid, outputFilePath);
@@ -689,26 +723,78 @@ namespace External_Building_Aerodynamics
                 return newUnstructuredGrid;
             }
 
-
-            private static vtkUnstructuredGrid ResampleData(vtkUnstructuredGrid originalGrid, vtkUnstructuredGrid reducedGrid)
+            private static vtkUnstructuredGrid ResampleData(vtkUnstructuredGrid originalGrid, vtkUnstructuredGrid reducedGrid, string debugFilePath, double tolerance)
             {
+                // Step 1: Convert UnstructuredGrid to PolyData for extrusion
+                var geometryFilter = vtkGeometryFilter.New();
+                geometryFilter.SetInputData(originalGrid);
+                geometryFilter.Update();
+
+                vtkPolyData polyData = geometryFilter.GetOutput();
+
+                // Step 2: Perform extrusion in positive Z direction
+                var extrusionFilterPositive = vtkLinearExtrusionFilter.New();
+                extrusionFilterPositive.SetInputData(polyData);
+                extrusionFilterPositive.SetExtrusionTypeToVectorExtrusion();
+                extrusionFilterPositive.SetVector(0, 0, 1); // Positive Z direction
+                extrusionFilterPositive.SetScaleFactor(1.0); // Set extrusion distance
+                extrusionFilterPositive.Update();
+
+                vtkPolyData extrudedPolyDataPositive = extrusionFilterPositive.GetOutput();
+
+                // Step 3: Perform extrusion in negative Z direction
+                var extrusionFilterNegative = vtkLinearExtrusionFilter.New();
+                extrusionFilterNegative.SetInputData(polyData);
+                extrusionFilterNegative.SetExtrusionTypeToVectorExtrusion();
+                extrusionFilterNegative.SetVector(0, 0, -1); // Negative Z direction
+                extrusionFilterNegative.SetScaleFactor(1.0); // Set extrusion distance
+                extrusionFilterNegative.Update();
+
+                vtkPolyData extrudedPolyDataNegative = extrusionFilterNegative.GetOutput();
+
+                // Step 4: Combine positive and negative extrusions
+                var appendFilter = vtkAppendFilter.New();
+                appendFilter.AddInputData(extrudedPolyDataPositive); // Add positive extrusion
+                appendFilter.AddInputData(extrudedPolyDataNegative); // Add negative extrusion
+                appendFilter.Update();
+
+                vtkUnstructuredGrid extrudedGrid = vtkUnstructuredGrid.SafeDownCast(appendFilter.GetOutput());
+
+                // Step 5: Export extruded mesh for debugging
+                ExportUnstructuredGrid(extrudedGrid, debugFilePath);
+
+                // Step 6: Resample data from the extruded grid to the reduced grid
                 var resampler = vtkResampleWithDataSet.New();
-                resampler.SetInputData(reducedGrid);
-                resampler.SetSourceData(originalGrid);
+                resampler.SetInputData(reducedGrid);       // The reduced mesh
+                resampler.SetSourceData(extrudedGrid);     // The extruded original mesh (source of data)
+
+                // Step 7: Set the tolerance for resampling and disable automatic tolerance computation
+                resampler.SetTolerance(tolerance);
+                resampler.SetComputeTolerance(false);  // Disable automatic tolerance computation
+
                 resampler.Update();
 
-                // Check if the output can be cast to vtkUnstructuredGrid
+                // Step 8: Check if the output is a vtkUnstructuredGrid and return it
                 if (resampler.GetOutput() is vtkUnstructuredGrid outputGrid)
                 {
                     return outputGrid;
                 }
                 else
                 {
-                    // Handle the case where the output is not a vtkUnstructuredGrid
-                    // For example, log an error or throw an exception
                     throw new InvalidOperationException("Resampling did not produce a vtkUnstructuredGrid.");
                 }
             }
+
+            // Function to export vtkUnstructuredGrid to a .vtu file for debugging
+            private static void ExportUnstructuredGrid(vtkUnstructuredGrid grid, string filePath)
+            {
+                var writer = vtkXMLUnstructuredGridWriter.New();
+                writer.SetFileName(filePath);
+                writer.SetInputData(grid);
+                writer.Write();
+            }
+
+
 
             private static void WriteUnstructuredGridToFile(vtkUnstructuredGrid grid, string filePath)
             {
