@@ -5,7 +5,11 @@ The use case this plugin is currenty developed for is to visulise SimScale resul
 SimScale developed this plugin to help our users in the AEC industry to get more out of the results, and we see this plugin as a community contribution, where the coomunity is equally welcomed to maintain and improve it.
 
 # Installation
-Todo
+1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
+2. Unzip the `.gha` and `.dll` files.
+3. Copy the files to Grasshopper’s components folder:  
+   `…/AppData/Roaming/Grasshopper/Libraries`
+4. Restart Rhino and Grasshopper.
 
 # Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction
