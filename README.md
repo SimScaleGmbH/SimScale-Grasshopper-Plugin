@@ -9,6 +9,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 2. Unzip the `.gha` and `.dll` files.
 3. Copy the files to Grasshopper’s components folder:  
    `…/AppData/Roaming/Grasshopper/Libraries`
+   Note: This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
 4. Restart Rhino and Grasshopper.
 
 # Examples
