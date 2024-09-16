@@ -11,6 +11,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
    `…/AppData/Roaming/Grasshopper/Libraries`
    Note: This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
 1. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
+	Note: Its really important to ensure the name is `.simscale_api_keys.yaml`
 1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated
 4. Restart Rhino and Grasshopper.
 
