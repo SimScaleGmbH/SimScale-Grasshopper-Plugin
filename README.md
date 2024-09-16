@@ -13,7 +13,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 1. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
 	Note: Its really important to ensure the name is `.simscale_api_keys.yaml`
 1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated
-4. Restart Rhino and Grasshopper.
+4. Restart Rhino and Grasshopper...
 
 # Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction
@@ -28,3 +28,6 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 5. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
 1. Toggle the boolean toggle connected to the Download component
 1. You should, after the procerss completes, see wind speed in the Rhino viewer, overlaid onto the geometry for context
+
+# Notes for contributors
+- Once a build is finalised, copy the bin folder over to latest stable, then zip it as a latest_stable.zip, tyhis should be automated at a later date

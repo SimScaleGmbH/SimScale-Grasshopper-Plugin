@@ -685,7 +685,7 @@ namespace External_Building_Aerodynamics
                 vtkUnstructuredGrid reducedGrid = ReduceMesh(originalGrid, targetResolution);
 
                 // Resample data from the original grid to the reduced grid
-                vtkUnstructuredGrid resampledGrid = ResampleData(originalGrid, reducedGrid, "C:\\Users\\darre\\SimScale\\speedup/extrudedMesh.vtu", 0.5);
+                vtkUnstructuredGrid resampledGrid = ResampleData(originalGrid, reducedGrid, 0.5);
 
                 // Write the resampled and reduced grid to a VTU file
                 WriteUnstructuredGridToFile(resampledGrid, outputFilePath);
@@ -723,7 +723,7 @@ namespace External_Building_Aerodynamics
                 return newUnstructuredGrid;
             }
 
-            private static vtkUnstructuredGrid ResampleData(vtkUnstructuredGrid originalGrid, vtkUnstructuredGrid reducedGrid, string debugFilePath, double tolerance)
+            private static vtkUnstructuredGrid ResampleData(vtkUnstructuredGrid originalGrid, vtkUnstructuredGrid reducedGrid, double tolerance)
             {
                 // Step 1: Convert UnstructuredGrid to PolyData for extrusion
                 var geometryFilter = vtkGeometryFilter.New();
@@ -759,9 +759,6 @@ namespace External_Building_Aerodynamics
                 appendFilter.Update();
 
                 vtkUnstructuredGrid extrudedGrid = vtkUnstructuredGrid.SafeDownCast(appendFilter.GetOutput());
-
-                // Step 5: Export extruded mesh for debugging
-                ExportUnstructuredGrid(extrudedGrid, debugFilePath);
 
                 // Step 6: Resample data from the extruded grid to the reduced grid
                 var resampler = vtkResampleWithDataSet.New();
