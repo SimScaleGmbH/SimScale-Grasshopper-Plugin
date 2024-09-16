@@ -10,9 +10,18 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 3. Copy the files to Grasshopper’s components folder:  
    `…/AppData/Roaming/Grasshopper/Libraries`
    Note: This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
+1. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
+1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated
 4. Restart Rhino and Grasshopper.
 
 # Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction
-1. basic_humantosky_example.gh - This is the example of outdoor thermal comfort most easy to comprehend, with little complexities surrounding it. It is however rather slow to compute and we consider this a stepping stone in one ones learning journey
-1. basic_radiance_example - Not yet developed
+2. basic_humantosky_example.gh - This is the example of outdoor thermal comfort most easy to comprehend, with little complexities surrounding it. It is however rather slow to compute and we consider this a stepping stone in one ones learning journey
+3. basic_radiance_example - Not yet developed
+
+# First run
+1. Download the geometry file `Boston.3dm` file from [here](./examples/Boston.3dm)
+2. Download the application example `basic.gh` from [here](./examples/basic.gh)
+3. Open the geometry file in Rhino, then open Grasshopper, there should be a SimScale tab
+1. Open the example `basic.gh`
+5. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
