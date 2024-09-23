@@ -8,14 +8,16 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 
 ## Installation
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
-2. Unzip the `.gha` and `.dll` files.
+![Plugin used to create UTCI results via ladybugtools](./images/download.png)
+2. Unzip the folder latest_stable.zip, you will see multiple `.gha` and `.dll` files within. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
 3. Copy the files to Grasshopper’s components folder:  
    `…/AppData/Roaming/Grasshopper/Libraries`
    **Note:** This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
 1. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
-	**Note:** Its really important to ensure the name is `.simscale_api_keys.yaml`
-1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated
-4. Restart Rhino and Grasshopper...
+	**Note:** Its really important to ensure the name is `.simscale_api_keys.yaml`, some times the dot "." is removed by your system, it needs re-introducing, and signifies a hidden file. 
+1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated.
+	The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>`
+4. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
 
 ## Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction
