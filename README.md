@@ -8,7 +8,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 
 ## Installation
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
-![Plugin used to create UTCI results via ladybugtools](./images/download.png)
+![Plugin used to create UTCI results via ladybugtools](./images/download.PNG)
 2. Unzip the folder latest_stable.zip, you will see multiple `.gha` and `.dll` files within. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
 3. Copy the files to Grasshopper’s components folder:  
    `…/AppData/Roaming/Grasshopper/Libraries`
