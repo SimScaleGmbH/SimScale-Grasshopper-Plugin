@@ -30,6 +30,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 3. Open the geometry file in Rhino, then open Grasshopper, there should be a SimScale tab
 1. Open the example `basic.gh`
 5. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
+**Note:** this project should be owned by you in SimScale, on the account from which you are addressing with the API key. The project is public, just copy it from [here](https://www.simscale.com/projects/dlynch_api/boston_-_wcd_2022/)
 1. Toggle the boolean toggle connected to the Download component
 1. You should, after the procerss completes, see wind speed in the Rhino viewer, overlaid onto the geometry for context
 
