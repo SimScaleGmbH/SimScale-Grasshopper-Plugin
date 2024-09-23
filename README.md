@@ -1,5 +1,5 @@
 # External Building Aerodynamics
-
+![Plugin used to create UTCI results via ladybugtools](./images/ViewCapture20240916_115607.png)
 **Note:** This is a Windows only plugin
 ## SimScale-Grasshopper plugin
 The use case this plugin is currenty developed for is to visulise SimScale results for wind speed within the Rhino environment using grasshopper. This use case includes also doing additional post processing to the results using Ladybug tools to produce outdoor thermal comfort parameters. We include a some examples of how this can be done, but its by no means an extensive overview of what can be done, and some expertise using Ladybug tools is recomended to perform the outdoor comfort calulations.
