@@ -1,33 +1,52 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-	
-  <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <Version>1.0</Version>
-    <Title>External Building Aerodynamics</Title>
-    <Description>Description of External Building Aerodynamics</Description>
-    <TargetExt>.gha</TargetExt>
-  </PropertyGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="Grasshopper" Version="7.31.23166.15001" IncludeAssets="compile;build" />
-    <PackageReference Include="JsonSubTypes" Version="1.5.2" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
-    <PackageReference Include="RestSharp" Version="106.10.1" />
-    <PackageReference Include="SharpZipLib" Version="1.4.2" />
-    <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
-    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
-    <PackageReference Include="YamlDotNet" Version="13.7.1" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Reference Include="SimScale.Sdk">
-      <HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\SimScale.Sdk.dll</HintPath>
-	</Reference>
-	<Reference Include="Kitware.mummy.Runtime">
-		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.mummy.Runtime.dll</HintPath>
-	</Reference>
-	<Reference Include="Kitware.VTK">
-		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
-	</Reference>
-  </ItemGroup>
+
+	<PropertyGroup>
+		<!-- Multi-targeting for both .NET Framework 4.8 (Rhino 7) and .NET 6 (Rhino 8) -->
+		<TargetFrameworks>net48;net6.0</TargetFrameworks>
+		<Version>1.0</Version>
+		<Title>External Building Aerodynamics</Title>
+		<Description>Description of External Building Aerodynamics</Description>
+		<TargetExt>.gha</TargetExt>
+		<Platforms>AnyCPU;x64</Platforms>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Grasshopper package references -->
+		<PackageReference Condition="'$(TargetFramework)' == 'net48'" Include="Grasshopper" Version="7.31.23166.15001" />
+		<PackageReference Condition="'$(TargetFramework)' == 'net6.0'" Include="Grasshopper" Version="8.12.24282.07001" />
+		<PackageReference Condition="'$(TargetFramework)' == 'net6.0'" Include="RhinoCommon" Version="8.12.24282.7001" />
+
+		<PackageReference Include="JsonSubTypes" Version="1.5.2" />
+		<PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+		<PackageReference Include="RestSharp" Version="106.10.1" />
+		<PackageReference Include="SharpZipLib" Version="1.4.2" />
+		<PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
+		<PackageReference Include="System.IO.Compression" Version="4.3.0" />
+		<PackageReference Include="YamlDotNet" Version="13.7.1" />
+		
+		<!-- Reference System.Drawing.Common for .NET 6 -->
+		<PackageReference Condition="'$(TargetFramework)' == 'net6.0'" Include="System.Drawing.Common" Version="7.0.0" />
+
+		<!-- Directly reference Grasshopper and RhinoCommon for Rhino 8 (.NET 6) -->
+		<Reference Condition="'$(TargetFramework)' == 'net6.0'" Include="Grasshopper">
+			<HintPath>C:\Program Files\Rhino 8\System\Grasshopper.dll</HintPath>
+		</Reference>
+		<Reference Condition="'$(TargetFramework)' == 'net6.0'" Include="RhinoCommon">
+			<HintPath>C:\Program Files\Rhino 8\System\RhinoCommon.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Custom references -->
+		<Reference Include="SimScale.Sdk">
+			<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\SimScale.Sdk.dll</HintPath>
+		</Reference>
+		<Reference Include="Kitware.mummy.Runtime">
+			<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.mummy.Runtime.dll</HintPath>
+		</Reference>
+		<Reference Include="Kitware.VTK">
+			<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
 </Project>
