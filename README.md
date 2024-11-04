@@ -8,6 +8,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 
 ## Installation - installer
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
+![Plugin used to create UTCI results via ladybugtools](./images/download.PNG)
 2. Unzip the folder latest_stable.zip. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
 3. double click the `installer.exe`
 4. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
