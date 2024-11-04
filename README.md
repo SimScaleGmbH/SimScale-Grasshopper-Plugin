@@ -6,10 +6,21 @@ The use case this plugin is currenty developed for is to visulise SimScale resul
 
 SimScale developed this plugin to help our users in the AEC industry to get more out of the results, and we see this plugin as a community contribution, where the coomunity is equally welcomed to maintain and improve it.
 
-## Installation
+## Installation - installer
+1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
+2. Unzip the folder latest_stable.zip. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
+3. double click the `installer.exe`
+4. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
+	**Note:** Its really important to ensure the name is `.simscale_api_keys.yaml`, some times the dot "." **prefixed to the begining of the file name** is removed by your system, it needs re-introducing, and signifies a hidden file. 
+5. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated.
+	**Note:** The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>`
+6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
+7. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
+
+## Installation - Manual
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
 ![Plugin used to create UTCI results via ladybugtools](./images/download.PNG)
-2. Unzip the folder latest_stable.zip, you will see multiple `.gha` and `.dll` files within. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
+2. Unzip the folder latest_stable.zip, you will see multiple `.gha` and `.dll` files within the `src` folder. Some systems extract .zip folders automatically upon download, so only do this step if necessary.
 3. Copy the files to Grasshopper’s components folder, this folder structure is usually found in your home directory:  
    `HOME/AppData/Roaming/Grasshopper/Libraries`
    **Note:** This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
