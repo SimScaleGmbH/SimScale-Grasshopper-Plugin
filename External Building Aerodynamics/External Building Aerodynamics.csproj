@@ -41,4 +41,8 @@
 		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
 	</Reference>
   </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /Y &quot;$(TargetDir)*&quot; &quot;$(SolutionDir).\latest_stable\SimScale\src&quot; /E /I&#xD;&#xA;powershell -Command &quot;Compress-Archive -Path '$(SolutionDir).\latest_stable\*' -DestinationPath '$(SolutionDir).\latest_stable\latest_stable.zip' -Force&quot;&#xD;&#xA;" />
+  </Target>
 </Project>
