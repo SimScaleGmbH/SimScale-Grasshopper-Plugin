@@ -364,6 +364,11 @@ namespace External_Building_Aerodynamics
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+            //string dotNetVersion = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+
+            // Throw an error with the .NET version
+            //this.AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Running on {dotNetVersion}");
+
             string projectName = "";
             string simulationName = "";
             string runName = "";
