@@ -49,6 +49,3 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 **Note:** this project should be owned by you in SimScale, on the account from which you are addressing with the API key. The project is public, just copy it from [here](https://www.simscale.com/projects/dlynch_api/boston_-_wcd_2022/) keep the name the same, remove the " - copy" part
 1. Toggle the boolean toggle connected to the Download component
 1. You should, after the process completes, see wind speed in the Rhino viewer, overlaid onto the geometry for context
-
-## Notes for contributors
-- Once a build is finalised, copy the bin folder over to latest stable, then zip it as a latest_stable.zip, tyhis should be automated at a later date
