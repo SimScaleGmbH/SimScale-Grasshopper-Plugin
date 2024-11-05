@@ -27,12 +27,13 @@ SimScale developed this plugin to help our users in the AEC industry to get more
    `HOME/AppData/Roaming/Grasshopper/Libraries`
    **Note:** This is a hidden folder, so you may need to make it visible, on win10 view>Show/Hide>Hidden items=True
    **Note:** The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>` making the location `C:\Users\<CurrentUserName>/AppData/Roaming/Grasshopper/Libraries`
-1. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
+4. Download the API key file example `.simscale_api_keys.yaml` from [here](./examples/.simscale_api_keys.yaml)
 	**Note:** Its really important to ensure the name is `.simscale_api_keys.yaml`, some times the dot "." **prefixed to the begining of the file name** is removed by your system, it needs re-introducing, and signifies a hidden file. 
-1. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated.
+5. Copy the key file to the user's home directory, open it in a text editor, and paste your API key where indicated, from your [SimScale account](https://www.simscale.com/dashboard/api_keys).
 	**Note:** The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>`
-4. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
-1. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
+	**Note:** For more information on generating API keys in SimScale, see [this guide](https://www.simscale.com/knowledge-base/manage-account/#api-keys).
+6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
+7. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
 
 ## Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction
