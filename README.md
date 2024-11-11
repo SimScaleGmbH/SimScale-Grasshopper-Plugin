@@ -17,7 +17,8 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 	**Note:** The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>`
 	**Note:** For more information on generating API keys in SimScale, see [this guide](https://www.simscale.com/knowledge-base/manage-account/#api-keys).
 6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
-7. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
+7. Install Ladybug tools, usually the best way to do this is running the pollination installer found [here](https://app.pollination.solutions/cad-plugins).
+8. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
 
 ## Installation - Manual
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
@@ -33,6 +34,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 	**Note:** The home directory can be found by typing the command `echo %userprofile%` into a command terminal, its usually `C:\Users\<CurrentUserName>`
 	**Note:** For more information on generating API keys in SimScale, see [this guide](https://www.simscale.com/knowledge-base/manage-account/#api-keys).
 6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
+7. Install Ladybug tools, usually the best way to do this is running the pollination installer found [here](https://app.pollination.solutions/cad-plugins).
 7. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
 
 ## Examples
@@ -44,8 +46,9 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 1. Download the geometry file `Boston.3dm` file from [here](./examples/Boston.3dm)
 2. Download the application example `basic.gh` from [here](./examples/basic.gh)
 3. Open the geometry file in Rhino, then open Grasshopper, there should be a SimScale tab
-1. Open the example `basic.gh`
-5. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
+4. Open the example `basic.gh`
+5. If you have a conflicting version of Ladybug tools (The "LB Spatial Heatmap" is a Ladybug component, if its showing old, simply update it to comply with your Ladybug tools version).
+6. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
 **Note:** this project should be owned by you in SimScale, on the account from which you are addressing with the API key. The project is public, just copy it from [here](https://www.simscale.com/projects/dlynch_api/boston_-_wcd_2022/) keep the name the same, remove the " - copy" part
-1. Toggle the boolean toggle connected to the Download component
-1. You should, after the process completes, see wind speed in the Rhino viewer, overlaid onto the geometry for context
+7. Toggle the boolean toggle connected to the Download component
+8. You should, after the process completes, see wind speed in the Rhino viewer, overlaid onto the geometry for context
