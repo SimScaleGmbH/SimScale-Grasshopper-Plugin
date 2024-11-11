@@ -46,6 +46,7 @@ SimScale developed this plugin to help our users in the AEC industry to get more
 1. Download the geometry file `Boston.3dm` file from [here](./examples/Boston.3dm)
 2. Download the application example `basic.gh` from [here](./examples/basic.gh)
 3. Open the geometry file in Rhino, then open Grasshopper, there should be a SimScale tab
+    **Note:** Ensure the model units in the Rhino settings are in meters, if using Rhino 8, this should be meters for both model and layout
 4. Open the example `basic.gh`
 5. If you have a conflicting version of Ladybug tools (The "LB Spatial Heatmap" is a Ladybug component, if its showing old, simply update it to comply with your Ladybug tools version).
 6. Set Project="Boston - WCD 2022", Simulation="Design 1", Simulation Run="Run 1"
