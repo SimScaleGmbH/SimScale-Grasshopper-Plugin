@@ -9,7 +9,18 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Grasshopper" Version="7.31.23166.15001" IncludeAssets="compile;build" />
+	<Reference Include="Grasshopper">
+		<HintPath>C:\Program Files\Rhino 7\Plug-ins\Grasshopper\Grasshopper.dll</HintPath>
+		<Private>False</Private>
+	</Reference>
+	<Reference Include="Grasshopper">
+		<HintPath>C:\Program Files\Rhino 7\Plug-ins\Grasshopper\GH_IO.dll</HintPath>
+		<Private>False</Private>
+	</Reference>
+	<Reference Include="RhinoCommon">
+		<HintPath>C:\Program Files\Rhino 7\System\RhinoCommon.dll</HintPath>
+		<Private>False</Private>
+	</Reference>
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="RestSharp" Version="106.10.1" />
@@ -30,4 +41,8 @@
 		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
 	</Reference>
   </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /Y &quot;$(TargetDir)*&quot; &quot;$(SolutionDir).\latest_stable\SimScale\src&quot; /E /I&#xD;&#xA;powershell -Command &quot;Compress-Archive -Path '$(SolutionDir).\latest_stable\*' -DestinationPath '$(SolutionDir).\latest_stable\latest_stable.zip' -Force&quot;&#xD;&#xA;" />
+  </Target>
 </Project>

@@ -40,7 +40,14 @@ namespace External_Building_Aerodynamics
             "Curve", "Primitive")
         {
         }
-        
+        static void Main(string[] args)
+        {
+            // Example usage
+            string srcFolder = @"C:\Path\To\Downloaded\Files";
+            string destFolder = @"C:\Path\To\Destination";
+
+            executable_classes.UnblockAndMoveFiles(srcFolder, destFolder);
+        }
 
         /// <summary>
         /// Registers all the input parameters for this component.
