@@ -9,40 +9,38 @@
   </PropertyGroup>
   
   <ItemGroup>
-	<Reference Include="Grasshopper">
-		<HintPath>C:\Program Files\Rhino 7\Plug-ins\Grasshopper\Grasshopper.dll</HintPath>
-		<Private>False</Private>
-	</Reference>
-	<Reference Include="Grasshopper">
-		<HintPath>C:\Program Files\Rhino 7\Plug-ins\Grasshopper\GH_IO.dll</HintPath>
-		<Private>False</Private>
-	</Reference>
-	<Reference Include="RhinoCommon">
-		<HintPath>C:\Program Files\Rhino 7\System\RhinoCommon.dll</HintPath>
-		<Private>False</Private>
-	</Reference>
+    <!-- McNeel publish Grasshopper/RhinoCommon as NuGet reference-only packages (ExcludeAssets
+         "runtime" keeps them out of the output — Rhino provides the real DLLs at load time).
+         This replaces hardcoded local install paths (previously "C:\Program Files\Rhino 7\...")
+         so the project builds without a Rhino install, including on CI or non-Windows. -->
+    <PackageReference Include="Grasshopper" Version="8.35.26251.13001" ExcludeAssets="runtime" />
+    <!-- Lets a net48 target build without a Windows .NET Framework install (needed to build
+         on CI / non-Windows machines). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="RestSharp" Version="106.10.1" />
-    <PackageReference Include="SharpZipLib" Version="1.4.2" />
     <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="13.7.1" />
   </ItemGroup>
-  
+
   <ItemGroup>
+    <!-- Was hardcoded to a specific developer's absolute clone path
+         (C:\Users\darre\...\vtk_dll\...); these DLLs are already checked into the repo under
+         vtk_dll/, so resolve them relative to this project file instead. -->
     <Reference Include="SimScale.Sdk">
-      <HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\SimScale.Sdk.dll</HintPath>
+      <HintPath>$(MSBuildThisFileDirectory)..\vtk_dll\SimScale.Sdk.dll</HintPath>
 	</Reference>
 	<Reference Include="Kitware.mummy.Runtime">
-		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.mummy.Runtime.dll</HintPath>
+		<HintPath>$(MSBuildThisFileDirectory)..\vtk_dll\Kitware.mummy.Runtime.dll</HintPath>
 	</Reference>
 	<Reference Include="Kitware.VTK">
-		<HintPath>C:\Users\darre\Documents\GitHub\SimScale-Grasshopper-Plugin\vtk_dll\Kitware.VTK.dll</HintPath>
+		<HintPath>$(MSBuildThisFileDirectory)..\vtk_dll\Kitware.VTK.dll</HintPath>
 	</Reference>
   </ItemGroup>
-  
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)'=='Windows_NT'">
     <Exec Command="xcopy /Y &quot;$(TargetDir)*&quot; &quot;$(SolutionDir).\latest_stable\SimScale\src&quot; /E /I&#xD;&#xA;powershell -Command &quot;Compress-Archive -Path '$(SolutionDir).\latest_stable\*' -DestinationPath '$(SolutionDir).\latest_stable\latest_stable.zip' -Force&quot;&#xD;&#xA;" />
   </Target>
 </Project>

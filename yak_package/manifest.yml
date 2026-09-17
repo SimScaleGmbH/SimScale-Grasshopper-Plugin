@@ -1,0 +1,29 @@
+# Yak package manifest — https://developer.rhino3d.com/guides/yak/the-package-manifest/
+#
+# This file is staged into the package root by scripts/Build-YakPackage.ps1, alongside
+# the built plugin (.gha) and its dependency .dlls from latest_stable/SimScale/src.
+# It is not meant to be built directly from this folder.
+
+name: simscale-grasshopper-plugin
+# $version tells `yak build` to read the version straight from the built .gha's
+# assembly version instead of hard-coding it here — keeps this file in sync automatically.
+version: $version
+authors:
+  - SimScale GmbH
+description: >
+  Visualize SimScale external building aerodynamics (wind comfort) results directly in
+  Rhino and Grasshopper, and post-process them with Ladybug Tools into outdoor thermal
+  comfort metrics such as UTCI (Universal Thermal Climate Index).
+url: "https://github.com/SimScaleGmbH/SimScale-Grasshopper-Plugin"
+keywords:
+  - simscale
+  - cfd
+  - wind-comfort
+  - utci
+  - thermal-comfort
+  - ladybug-tools
+  - aec
+# icon: icon.png
+# TODO: drop a 64x64 icon.png (SimScale mark) into this folder and uncomment the line
+# above. Left out for now rather than shipping a placeholder — icon is optional for `yak
+# build` to succeed.

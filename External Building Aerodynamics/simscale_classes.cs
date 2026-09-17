@@ -10,8 +10,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Xml.Linq;
 using System.IO.Compression;
-using SharpZipLib = ICSharpCode.SharpZipLib.Zip;
-using ICSharpCode.SharpZipLib.Core;
 using External_Building_Aerodynamics;
 using System.Threading;
 using Grasshopper.Kernel.Types;
@@ -37,6 +35,11 @@ namespace External_Building_Aerodynamics
             ReadAPIConfigFromYAML();
             CreateConfig();
             restClient = new RestClient();
+            // No explicit timeout previously meant RestSharp's default (~100s) applied to
+            // every download, including large per-direction result zips — big enough
+            // projects would have their download silently cut off mid-transfer before
+            // extraction ever got a chance to run.
+            restClient.Timeout = 600000; // 10 minutes
         }
         public SimScalePWCIntegration Clone()
         {
@@ -75,21 +78,23 @@ namespace External_Building_Aerodynamics
         {
             var projectsApi = new ProjectsApi(this.config);
 
-
-            int length = 100;
-            int i = 1;
-            while (length != 0)
+            int page = 1;
+            while (true)
             {
-                var projects = projectsApi.GetProjects(100, i);
+                var projects = projectsApi.GetProjects(100, page);
+                if (projects.Embedded == null || projects.Embedded.Count == 0)
+                {
+                    break;
+                }
+
                 foreach (var project in projects.Embedded)
                 {
                     if (project.Name == projectName)
                     {
                         return project.ProjectId;
-
                     }
                 }
-                i += 1;
+                page += 1;
             }
 
             throw new Exception($"No project found with the name: {projectName}");
@@ -125,6 +130,28 @@ namespace External_Building_Aerodynamics
             }
 
             throw new Exception($"No run found with the name: {runName}");
+        }
+
+        // The download request has no response-status check (RestSharp's ResponseWriter
+        // callback pattern writes whatever bytes arrive regardless of HTTP status), so a
+        // failed or interrupted download still leaves a file at zipPath. Opening that
+        // directly as a zip gives a confusing low-level exception; this gives a clear,
+        // actionable one instead, including the file size so a truncated download is
+        // obvious at a glance.
+        private static ZipArchive OpenDownloadedZipOrThrow(string zipPath)
+        {
+            long size = new FileInfo(zipPath).Length;
+            try
+            {
+                return ZipFile.OpenRead(zipPath);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    $"Downloaded file at {zipPath} ({size} bytes) is not a valid zip archive. " +
+                    "The download was likely interrupted or timed out before it finished — " +
+                    $"try again. ({ex.GetType().Name}: {ex.Message})", ex);
+            }
         }
 
         public (List<string> directionPaths, string comfortPlotPath) DownloadResults(string projectId, Guid? simulationId, Guid? runId)
@@ -186,45 +213,48 @@ namespace External_Building_Aerodynamics
                     }
                     Thread.Sleep(5000);
 
-                    string directoryPath = Path.Combine(directionsPath, direction.ToString());
+                    // Each direction's zip already contains its own "Directions/<direction>/..."
+                    // folder internally, so entries are extracted relative to the SimScale root
+                    // (homePath\SimScale), not directionsPath — combining with directionsPath
+                    // here previously duplicated the "Directions" segment (and diverged from the
+                    // zip's own "135.0"-style naming, since direction.ToString() drops the decimal).
+                    string extractionRoot = Path.Combine(homePath, "SimScale");
 
-                    using (FileStream fs = File.OpenRead(zipPath))
+                    using (ZipArchive zf = OpenDownloadedZipOrThrow(zipPath))
                     {
-                        using (SharpZipLib.ZipFile zf = new SharpZipLib.ZipFile(fs))
+                        foreach (ZipArchiveEntry zipEntry in zf.Entries)
                         {
-                            foreach (SharpZipLib.ZipEntry zipEntry in zf)
+                            // Directory entries have an empty Name (FullName ends in '/').
+                            if (string.IsNullOrEmpty(zipEntry.Name))
                             {
-                                if (!zipEntry.IsFile)
+                                continue;
+                            }
+
+                            string entryFileName = zipEntry.FullName.Replace('/', Path.DirectorySeparatorChar); // Correcting the path
+                            string fullZipToPath = Path.Combine(extractionRoot, entryFileName);
+
+                            // Ensure the directory exists
+                            string directoryName = Path.GetDirectoryName(fullZipToPath);
+                            if (!string.IsNullOrEmpty(directoryName))
+                                Directory.CreateDirectory(directoryName);
+
+                            try
+                            {
+                                using (Stream zipStream = zipEntry.Open())
+                                using (FileStream streamWriter = File.Create(fullZipToPath))
                                 {
-                                    continue; // Ignore directories
+                                    zipStream.CopyTo(streamWriter);
                                 }
 
-                                string entryFileName = zipEntry.Name.Replace('/', Path.DirectorySeparatorChar); // Correcting the path
-                                string fullZipToPath = Path.Combine(directoryPath, entryFileName);
-
-                                // Ensure the directory exists
-                                string directoryName = Path.GetDirectoryName(fullZipToPath);
-                                if (directoryName.Length > 0)
-                                    Directory.CreateDirectory(directoryName);
-
-                                try
+                                if (entryFileName.EndsWith(".case"))
                                 {
-                                    using (Stream zipStream = zf.GetInputStream(zipEntry))
-                                    using (FileStream streamWriter = File.Create(fullZipToPath))
-                                    {
-                                        zipStream.CopyTo(streamWriter);
-                                    }
-
-                                    if (entryFileName.EndsWith(".case"))
-                                    {
-                                        caseFilePath = fullZipToPath;
-                                    }
+                                    caseFilePath = fullZipToPath;
                                 }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"Failed to extract file at path: {fullZipToPath}");
-                                    throw new Exception($"Extraction failed for path: {fullZipToPath}", ex);
-                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Failed to extract file at path: {fullZipToPath}");
+                                throw new Exception($"Extraction failed for path: {fullZipToPath} ({ex.GetType().Name}: {ex.Message})", ex);
                             }
                         }
                     }
@@ -256,42 +286,38 @@ namespace External_Building_Aerodynamics
 
                 comfortPlotPath = Path.Combine(comfortPlotsPath, "ComfortPlot");
 
-                using (FileStream fs = File.OpenRead(zipPath))
+                using (ZipArchive zf = OpenDownloadedZipOrThrow(zipPath))
                 {
-                    using (SharpZipLib.ZipFile zf = new SharpZipLib.ZipFile(fs))
+                    foreach (ZipArchiveEntry zipEntry in zf.Entries)
                     {
-                        foreach (SharpZipLib.ZipEntry zipEntry in zf)
+                        string correctedEntryPath = zipEntry.FullName.Replace('/', Path.DirectorySeparatorChar);
+                        string destinationPath = Path.Combine(comfortPlotPath, correctedEntryPath);
+
+                        // Directory entries have an empty Name (FullName ends in '/').
+                        if (string.IsNullOrEmpty(zipEntry.Name))
                         {
-                            string correctedEntryPath = zipEntry.Name.Replace('/', Path.DirectorySeparatorChar);
-                            string destinationPath = Path.Combine(comfortPlotPath, correctedEntryPath);
-
-                            if (zipEntry.IsDirectory)
+                            Directory.CreateDirectory(destinationPath);
+                        }
+                        else
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
+                            try
                             {
-                                Directory.CreateDirectory(destinationPath);
+                                using (var zipStream = zipEntry.Open())
+                                using (FileStream output = File.Create(destinationPath))
+                                {
+                                    zipStream.CopyTo(output);
+                                }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
-                                try
-                                {
-                                    using (var zipStream = zf.GetInputStream(zipEntry))
-                                    {
-                                        using (FileStream output = File.Create(destinationPath))
-                                        {
-                                            StreamUtils.Copy(zipStream, output, new byte[4096]);
-                                        }
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"Failed to extract file at path: {destinationPath}");
-                                    throw new Exception($"Extraction failed for path: {destinationPath}", ex);
-                                }
+                                Console.WriteLine($"Failed to extract file at path: {destinationPath}");
+                                throw new Exception($"Extraction failed for path: {destinationPath} ({ex.GetType().Name}: {ex.Message})", ex);
+                            }
 
-                                if (correctedEntryPath.EndsWith(".vtm"))
-                                {
-                                    vtmFilePath = destinationPath;
-                                }
+                            if (correctedEntryPath.EndsWith(".vtm"))
+                            {
+                                vtmFilePath = destinationPath;
                             }
                         }
                     }

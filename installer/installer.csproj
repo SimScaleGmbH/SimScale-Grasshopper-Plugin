@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)'=='Windows_NT'">
     <Exec Command="xcopy /Y &quot;$(TargetDir)*&quot; &quot;$(SolutionDir).\latest_stable\SimScale\&quot; /E /I" />
   </Target>
 

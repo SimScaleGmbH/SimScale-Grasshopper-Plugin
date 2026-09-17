@@ -1,0 +1,40 @@
+name: Build Yak Package
+
+# Builds a .yak package from the plugin output already committed under
+# latest_stable/SimScale/src, and uploads it as a workflow artifact on every run.
+# On a version tag push, it additionally publishes to the Yak server — but only if
+# the YAK_TOKEN repository secret has been set (see yak_package/README.md).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Yak CLI
+        shell: pwsh
+        run: Invoke-WebRequest -Uri "https://files.mcneel.com/yak/tools/latest/yak.exe" -OutFile "yak.exe"
+
+      - name: Build package
+        shell: pwsh
+        run: ./scripts/Build-YakPackage.ps1 -YakExe "$PWD/yak.exe" -Platform win
+
+      - name: Upload .yak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yak-package
+          path: "*.yak"
+
+      - name: Publish to Yak server
+        if: startsWith(github.ref, 'refs/tags/') && env.YAK_TOKEN != ''
+        shell: pwsh
+        env:
+          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
+        run: |
+          $pkg = Get-ChildItem -Filter "*.yak" | Select-Object -First 1
+          ./yak.exe push $pkg.FullName

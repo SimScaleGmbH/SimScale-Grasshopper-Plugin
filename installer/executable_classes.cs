@@ -38,11 +38,13 @@ namespace Installer
                 "Libraries"
             );
 
-            // Check if "Libraries" exists; if not, throw an error
+            // Grasshopper only creates this folder the first time it's opened, so a fresh
+            // Rhino install that has never launched Grasshopper won't have it yet — create
+            // it rather than aborting, otherwise the install silently does nothing.
             if (!Directory.Exists(grasshopperLibrariesPath))
             {
-                Console.WriteLine($"Error: Libraries folder does not exist: {grasshopperLibrariesPath}");
-                return;
+                Console.WriteLine($"Creating Libraries folder at: {grasshopperLibrariesPath}");
+                Directory.CreateDirectory(grasshopperLibrariesPath);
             }
 
             // Define the full path including "SimScale"
