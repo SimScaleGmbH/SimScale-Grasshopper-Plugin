@@ -9,6 +9,14 @@
          SetDotNetRuntime workaround this removes. -->
     <TargetFramework>net7.0-windows</TargetFramework>
     <UseWindowsForms>false</UseWindowsForms>
+    <!-- Without UseWindowsForms/UseWPF set, this project's implicit "copy only what a
+         normal app needs" heuristic silently skips copying several packages' actual
+         runtime DLLs to output even though they resolve correctly (confirmed for both
+         System.Drawing.Common and YamlDotNet — deps.json lists them as runtime assets,
+         but the files never land in bin/). Forcing every resolved package (direct and
+         transitive) to copy fixes this in one place instead of patching each package
+         individually as the failures surface one by one in Grasshopper. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Version>1.0</Version>
     <Title>External Building Aerodynamics</Title>
     <Description>Description of External Building Aerodynamics</Description>
@@ -28,15 +36,8 @@
          8 installs older than that pin. -->
     <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
     <!-- GH_AssemblyInfo.Icon is a System.Drawing.Bitmap; on net7.0-windows that type no
-         longer ships in the base framework and needs this package explicitly. NuGet
-         resolves this package's ref assembly correctly on a net*-windows TFM without
-         UseWindowsForms/UseWPF set, but silently skips copying the real runtime DLL to
-         the output — every other dependency copies fine, only this one doesn't. Confirmed
-         by loading the built .gha standalone: it threw "Could not load ... System.Drawing.Common"
-         and Grasshopper couldn't recognize any of the plugin's components as a result.
-         ExcludeAssets="runtime" + an explicit HintPath Reference below (same pattern as the
-         VTK DLLs) forces the real DLL into the output regardless of that NuGet quirk. -->
-    <PackageReference Include="System.Drawing.Common" Version="8.0.31" ExcludeAssets="runtime" GeneratePathProperty="true" />
+         longer ships in the base framework and needs this package explicitly. -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.31" />
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="RestSharp" Version="106.15.0" />
@@ -57,19 +58,6 @@
 		<HintPath>$(MSBuildThisFileDirectory)..\vtk_dll\Kitware.VTK.dll</HintPath>
 	</Reference>
   </ItemGroup>
-
-  <Target Name="CopySystemDrawingCommonRuntime" AfterTargets="Build">
-    <!-- A plain <Reference> alongside the PackageReference above gets silently deduped by
-         MSBuild (same assembly simple name), so it never actually lands in the output.
-         Copy the real runtime DLLs straight from the NuGet cache instead, using the paths
-         GeneratePathProperty exposes. Also grabs Microsoft.Win32.SystemEvents.dll, System.Drawing.Common's
-         own runtime dependency, which has the identical copy problem. -->
-    <ItemGroup>
-      <_MissingRuntimeDlls Include="$(PkgSystem_Drawing_Common)\lib\net7.0\System.Drawing.Common.dll" />
-      <_MissingRuntimeDlls Include="$(NuGetPackageRoot)microsoft.win32.systemevents\8.0.0\runtimes\win\lib\net7.0\Microsoft.Win32.SystemEvents.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_MissingRuntimeDlls)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-  </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)'=='Windows_NT'">
     <Exec Command="xcopy /Y &quot;$(TargetDir)*&quot; &quot;$(SolutionDir).\latest_stable\SimScale\src&quot; /E /I&#xD;&#xA;powershell -Command &quot;Compress-Archive -Path '$(SolutionDir).\latest_stable\*' -DestinationPath '$(SolutionDir).\latest_stable\latest_stable.zip' -Force&quot;&#xD;&#xA;" />
