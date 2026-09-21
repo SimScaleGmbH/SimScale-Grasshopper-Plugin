@@ -13,7 +13,6 @@
           "Newtonsoft.Json": "13.0.4",
           "RestSharp": "106.15.0",
           "System.Drawing.Common": "8.0.31",
-          "YamlDotNet": "13.7.1",
           "Kitware.mummy.Runtime": "1.0.5.0",
           "Kitware.VTK": "9.2.2023.328",
           "SimScale.Sdk": "9.0.0.0"
@@ -79,14 +78,6 @@
           "lib/net7.0/System.Drawing.Common.dll": {
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.3126.42106"
-          }
-        }
-      },
-      "YamlDotNet/13.7.1": {
-        "runtime": {
-          "lib/net7.0/YamlDotNet.dll": {
-            "assemblyVersion": "13.0.0.0",
-            "fileVersion": "13.7.1.0"
           }
         }
       },
@@ -170,13 +161,6 @@
       "sha512": "sha512-xCTGg7fw7JE8j3feXaedW8/n7FGfPV5OyAllr+6Hed1w5Q40EFDrT1fL9Xyuj/eQcikYpvVU7Z8RJO0HVjQfzQ==",
       "path": "system.drawing.common/8.0.31",
       "hashPath": "system.drawing.common.8.0.31.nupkg.sha512"
-    },
-    "YamlDotNet/13.7.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A==",
-      "path": "yamldotnet/13.7.1",
-      "hashPath": "yamldotnet.13.7.1.nupkg.sha512"
     },
     "Kitware.mummy.Runtime/1.0.5.0": {
       "type": "reference",
