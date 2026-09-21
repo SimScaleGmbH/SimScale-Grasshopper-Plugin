@@ -451,15 +451,36 @@ namespace External_Building_Aerodynamics
                 // Assuming fields are named after their angles, e.g., "0", "45", "90", etc.
                 // You'll need to replace this with the actual way fields are named in your dataset
                 List<double> availableAngles = new List<double>();
+                List<string> allFieldNames = new List<string>();
 
                 // Populate availableAngles with the angles from the dataset fields
-                for (int i = 0; i < data.GetPointData().GetNumberOfArrays(); i++)
+                int fieldCount = data.GetPointData().GetNumberOfArrays();
+                for (int i = 0; i < fieldCount; i++)
                 {
                     string fieldName = data.GetPointData().GetArrayName(i);
+                    allFieldNames.Add(fieldName);
                     if (double.TryParse(fieldName, out double angle))
                     {
                         availableAngles.Add(angle);
                     }
+                }
+
+                if (availableAngles.Count == 0)
+                {
+                    // Was previously a bare ".First()" on an empty list, which just throws
+                    // "Sequence contains no elements" — tells you nothing about why. This
+                    // shows the actual field names found in the mesh, so a naming-convention
+                    // mismatch (or a genuinely empty/failed upstream extraction) is obvious
+                    // immediately instead of requiring another guess-and-check round trip.
+                    string fieldList = allFieldNames.Count > 0
+                        ? string.Join(", ", allFieldNames)
+                        : "(none — the mesh has no point-data fields at all)";
+                    throw new Exception(
+                        $"No direction-named fields found in the reduced mesh (expected names " +
+                        $"like \"0\", \"45\", \"90\" matching wind direction angles). " +
+                        $"Found {fieldCount} field(s) instead: {fieldList}. This means either the " +
+                        "direction results didn't download/extract correctly upstream, or this " +
+                        "project's exported field names don't match the plugin's expected format.");
                 }
 
                 // Normalize the direction to be within [0, 360)

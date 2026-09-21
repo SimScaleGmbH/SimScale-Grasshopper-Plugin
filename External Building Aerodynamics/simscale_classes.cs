@@ -7,6 +7,7 @@ using YamlDotNet.RepresentationModel;
 using RestSharp;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Linq;
 using System.Drawing;
 using System.Xml.Linq;
 using System.IO.Compression;
@@ -213,12 +214,15 @@ namespace External_Building_Aerodynamics
                     }
                     Thread.Sleep(5000);
 
-                    // Each direction's zip already contains its own "Directions/<direction>/..."
-                    // folder internally, so entries are extracted relative to the SimScale root
-                    // (homePath\SimScale), not directionsPath — combining with directionsPath
-                    // here previously duplicated the "Directions" segment (and diverged from the
-                    // zip's own "135.0"-style naming, since direction.ToString() drops the decimal).
-                    string extractionRoot = Path.Combine(homePath, "SimScale");
+                    // Different projects' exports have been observed with different internal
+                    // zip layouts — some nest every entry under their own "Directions/<x>/..."
+                    // folder, others don't. Rather than assume either convention, always
+                    // extract into a folder unique to THIS direction (named after the zip we
+                    // just downloaded, e.g. "135"), and strip a redundant leading
+                    // "Directions/<x>/" prefix from entries if the zip happens to have one —
+                    // so the result is predictable either way: it always lands right next to
+                    // the .zip it came from, at Directions\<direction>\...
+                    string extractionRoot = Path.Combine(directionsPath, Path.GetFileNameWithoutExtension(zipPath));
 
                     using (ZipArchive zf = OpenDownloadedZipOrThrow(zipPath))
                     {
@@ -230,7 +234,12 @@ namespace External_Building_Aerodynamics
                                 continue;
                             }
 
-                            string entryFileName = zipEntry.FullName.Replace('/', Path.DirectorySeparatorChar); // Correcting the path
+                            string[] entrySegments = zipEntry.FullName.Split('/');
+                            int skipSegments = (entrySegments.Length > 2 &&
+                                entrySegments[0].Equals("Directions", StringComparison.OrdinalIgnoreCase)) ? 2 : 0;
+                            string entryFileName = string.Join(
+                                Path.DirectorySeparatorChar.ToString(),
+                                entrySegments.Skip(skipSegments));
                             string fullZipToPath = Path.Combine(extractionRoot, entryFileName);
 
                             // Ensure the directory exists
