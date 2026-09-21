@@ -75,12 +75,14 @@ namespace External_Building_Aerodynamics
         {
             var projectsApi = new ProjectsApi(this.config);
 
-
-            int length = 100;
             int i = 1;
-            while (length != 0)
+            while (true)
             {
                 var projects = projectsApi.GetProjects(100, i);
+                if (projects.Embedded.Count == 0)
+                {
+                    break;
+                }
                 foreach (var project in projects.Embedded)
                 {
                     if (project.Name == projectName)
