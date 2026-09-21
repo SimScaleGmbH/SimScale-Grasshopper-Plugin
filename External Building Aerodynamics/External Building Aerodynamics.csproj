@@ -20,11 +20,13 @@
          "runtime" keeps them out of the output — Rhino provides the real DLLs at load time).
          This replaces hardcoded local install paths (previously "C:\Program Files\Rhino 7\...")
          so the project builds without a Rhino install, including on CI or non-Windows. -->
-    <!-- Pinned to the oldest Rhino 8 SDK we want to support so the plugin stays
-         forward-compatible (McNeel's own guidance: build against the lowest version
-         you want to run on, not the latest). A previous newer pin here caused a
-         "built against a newer minor SDK" breakpoint error on older Rhino 8 installs. -->
-    <PackageReference Include="Grasshopper" Version="8.19.25132.1001" ExcludeAssets="runtime" />
+    <!-- Pinned to the first stable Rhino 8 release (not whatever happens to be on a given
+         dev/test machine) so the plugin stays forward-compatible with every Rhino 8 user
+         (McNeel's own guidance: build against the lowest SDK version you want to support —
+         these reference-only packages are forward- but not backward-compatible). A previous
+         newer pin here caused a "built against a newer minor SDK" breakpoint error on Rhino
+         8 installs older than that pin. -->
+    <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
     <!-- GH_AssemblyInfo.Icon is a System.Drawing.Bitmap; on net7.0-windows that type no
          longer ships in the base framework and needs this package explicitly. -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.31" />
