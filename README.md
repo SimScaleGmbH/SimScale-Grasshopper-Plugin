@@ -1,6 +1,6 @@
 # External Building Aerodynamics
 ![Plugin used to create UTCI results via ladybugtools](./images/ViewCapture20240916_115607.png)
-**Note:** This is a Windows only plugin, and requires **Rhino 8** (it targets Rhino 8's .NET 7 runtime and is no longer compatible with Rhino 7's .NET Framework).
+**Note:** This is a Windows only plugin
 ## SimScale-Grasshopper plugin
 The use case this plugin is currenty developed for is to visulise SimScale results for wind speed within the Rhino environment using grasshopper. This use case includes also doing additional post processing to the results using Ladybug tools to produce outdoor thermal comfort parameters. We include a some examples of how this can be done, but its by no means an extensive overview of what can be done, and some expertise using Ladybug tools is recomended to perform the outdoor comfort calulations.
 
@@ -21,6 +21,7 @@ Once this plugin is published to McNeel's Yak package server (see [yak_package/R
 	**Note:** For more information on generating API keys in SimScale, see [this guide](https://www.simscale.com/knowledge-base/manage-account/#api-keys).
 6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
 7. Install Ladybug tools, usually the best way to do this is running the pollination installer found [here](https://app.pollination.solutions/cad-plugins).
+8. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
 
 ## Installation - Manual
 1. Download the latest `.zip` file from [here](./latest_stable/latest_stable.zip)
@@ -37,6 +38,7 @@ Once this plugin is published to McNeel's Yak package server (see [yak_package/R
 	**Note:** For more information on generating API keys in SimScale, see [this guide](https://www.simscale.com/knowledge-base/manage-account/#api-keys).
 6. Restart Rhino and Grasshopper. This is requred so that Rhino and grasshopper scan the plugin files upon opening and introduce the plugin under the name SimScale to grasshopper.
 7. Install Ladybug tools, usually the best way to do this is running the pollination installer found [here](https://app.pollination.solutions/cad-plugins).
+7. For Rhino 8 ONLY, open Rhino 8, and type `SetDotNetRuntime` choose `r` (for Runtime) and then `e` (for NETFramework), close and restart Rhino 8.
 
 ## Examples
 1. basic.gh - A very basic visulisation of wind speed, given a reference speed and direction

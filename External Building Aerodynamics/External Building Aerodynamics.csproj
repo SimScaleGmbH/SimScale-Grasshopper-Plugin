@@ -1,22 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	
   <PropertyGroup>
-    <!-- Rhino 8's Grasshopper host runs plugins on .NET 7, not .NET 8/9 — McNeel's own
-         templates and the published Grasshopper/RhinoCommon NuGet packages only ship
-         net48 and net7.0(-windows) asset groups (there is no net8.0 group yet), so
-         net7.0-windows is the correct "modern" TFM here, not net8.0-windows. This drops
-         Rhino 7 (net48) support entirely and requires Rhino 8 — see README for the
-         SetDotNetRuntime workaround this removes. -->
-    <TargetFramework>net7.0-windows</TargetFramework>
-    <UseWindowsForms>false</UseWindowsForms>
-    <!-- Without UseWindowsForms/UseWPF set, this project's implicit "copy only what a
-         normal app needs" heuristic silently skips copying several packages' actual
-         runtime DLLs to output even though they resolve correctly (confirmed for both
-         System.Drawing.Common and YamlDotNet — deps.json lists them as runtime assets,
-         but the files never land in bin/). Forcing every resolved package (direct and
-         transitive) to copy fixes this in one place instead of patching each package
-         individually as the failures surface one by one in Grasshopper. -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- Reverted from net7.0-windows back to net48. The net7.0-windows migration got
+         everything else working (project lookup, download, extraction) but hit a hard
+         wall in vtk_dll/Kitware.VTK.dll + Kitware.mummy.Runtime.dll: that VTK .NET
+         wrapper is itself built for .NET Framework (its own referenced assemblies include
+         System.Windows.Forms, System.Drawing, mscorlib — no netstandard/.NET Core surface
+         at all) and its native companion DLL fails to load under .NET Core's stricter
+         assembly loader ("Could not load file or assembly
+         'Kitware.mummy.Runtime.Unmanaged.dll'... only single file assemblies are
+         supported"). That's a structural incompatibility in a vendored binary we have no
+         source for, not something fixable from this project file. net48 is proven working
+         end-to-end and is what these vendored DLLs actually target — see README's
+         SetDotNetRuntime → NETFramework step, which is required again. -->
+    <TargetFramework>net48</TargetFramework>
     <Version>1.0</Version>
     <Title>External Building Aerodynamics</Title>
     <Description>Description of External Building Aerodynamics</Description>
@@ -35,9 +32,6 @@
          newer pin here caused a "built against a newer minor SDK" breakpoint error on Rhino
          8 installs older than that pin. -->
     <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
-    <!-- GH_AssemblyInfo.Icon is a System.Drawing.Bitmap; on net7.0-windows that type no
-         longer ships in the base framework and needs this package explicitly. -->
-    <PackageReference Include="System.Drawing.Common" Version="8.0.31" />
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <!-- Pinned to the version the vendored, precompiled vtk_dll/SimScale.Sdk.dll (no source
@@ -49,6 +43,11 @@
          by reflecting on SimScale.Sdk.dll's own referenced assembly info and by the version
          this project used before an unrelated "bump to latest patch" commit changed it. -->
     <PackageReference Include="RestSharp" Version="106.10.1" />
+    <!-- net48 needs these as explicit package references (System.IO.Compression.ZipArchive
+         isn't in the base Framework the way it is on .NET Core); used for the
+         SharpZipLib → System.IO.Compression zip-extraction fix. -->
+    <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <!-- YamlDotNet was removed: Rhino 8 ships its own older YamlDotNet.dll in its System
          folder and loads it before any plugin, which collides with this plugin's own copy
          (same simple name, different version — "Could not load file or assembly
