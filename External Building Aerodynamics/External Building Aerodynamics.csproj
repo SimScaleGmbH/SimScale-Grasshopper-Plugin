@@ -41,7 +41,12 @@
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="RestSharp" Version="106.15.0" />
-    <PackageReference Include="YamlDotNet" Version="13.7.1" />
+    <!-- YamlDotNet was removed: Rhino 8 ships its own older YamlDotNet.dll in its System
+         folder and loads it before any plugin, which collides with this plugin's own copy
+         (same simple name, different version — "Could not load file or assembly
+         'YamlDotNet, Version=13.0.0.0'... Could not find or load a specific file" even
+         though the correct file is sitting right next to this assembly). api_keys.cs now
+         parses its two-field YAML config by hand instead. -->
   </ItemGroup>
 
   <ItemGroup>

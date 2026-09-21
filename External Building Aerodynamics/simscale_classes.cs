@@ -3,7 +3,6 @@ using SimScale.Sdk.Client;
 using SimScale.Sdk.Model;
 using System;
 using System.IO;
-using YamlDotNet.RepresentationModel;
 using RestSharp;
 using Newtonsoft.Json;
 using System.Collections.Generic;
@@ -14,7 +13,6 @@ using System.IO.Compression;
 using External_Building_Aerodynamics;
 using System.Threading;
 using Grasshopper.Kernel.Types;
-using YamlDotNet.Core.Tokens;
 using Grasshopper.Kernel;
 
 namespace External_Building_Aerodynamics
