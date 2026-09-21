@@ -40,7 +40,15 @@
     <PackageReference Include="System.Drawing.Common" Version="8.0.31" />
     <PackageReference Include="JsonSubTypes" Version="1.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="RestSharp" Version="106.15.0" />
+    <!-- Pinned to the version the vendored, precompiled vtk_dll/SimScale.Sdk.dll (no source
+         available to rebuild it here) was actually built against, not the "latest patch"
+         a prior commit bumped this to. RestSharp made a breaking internal signature change
+         to RestClient.AddHandler somewhere in the 106.x line without bumping AssemblyVersion
+         (still 106.0.0.0), so 106.15.0 loads fine but throws a MethodAccessException the
+         moment SimScale.Sdk.Client.ApiClient.Exec actually calls into RestClient — confirmed
+         by reflecting on SimScale.Sdk.dll's own referenced assembly info and by the version
+         this project used before an unrelated "bump to latest patch" commit changed it. -->
+    <PackageReference Include="RestSharp" Version="106.10.1" />
     <!-- YamlDotNet was removed: Rhino 8 ships its own older YamlDotNet.dll in its System
          folder and loads it before any plugin, which collides with this plugin's own copy
          (same simple name, different version — "Could not load file or assembly
